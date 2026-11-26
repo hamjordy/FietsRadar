@@ -63,6 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Position? _position;
   List<Place> _suggestions = [];
   List<RoadReport> _reports = [];
+  ReportType? _selectedReportFilter;
   BikeRoute? _route;
   Place? _destination;
 
@@ -1888,6 +1889,32 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 7),
+                    child: ChoiceChip(
+                      label: const Text('Alles'),
+                      selected: _selectedReportFilter == null,
+                      onSelected: (_) => setState(() => _selectedReportFilter = null),
+                    ),
+                  ),
+                  for (final type in ReportType.values)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 7),
+                      child: ChoiceChip(
+                        avatar: Icon(type.icon, size: 16, color: type.color),
+                        label: Text(type.label),
+                        selected: _selectedReportFilter == type,
+                        onSelected: (_) => setState(() => _selectedReportFilter = type),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
             Expanded(
               child: _reports.isEmpty
                   ? _emptyState(
@@ -1898,12 +1925,26 @@ class _HomeScreenState extends State<HomeScreen> {
                       buttonLabel: 'Melding plaatsen',
                       onPressed: _showReportSheet,
                     )
-                  : ListView.separated(
-                      itemCount: _reports.length,
+                  : Builder(
+                      builder: (context) {
+                        final filteredReports = _selectedReportFilter == null
+                            ? _reports
+                            : _reports.where((report) => report.type == _selectedReportFilter).toList();
+                        if (filteredReports.isEmpty) {
+                          return _emptyState(
+                            icon: Icons.filter_alt_off_rounded,
+                            title: 'Geen meldingen in deze categorie',
+                            message: 'Kies een andere categorie of tik op Alles om alle meldingen te bekijken.',
+                            buttonLabel: 'Toon alles',
+                            onPressed: () => setState(() => _selectedReportFilter = null),
+                          );
+                        }
+                        return ListView.separated(
+                      itemCount: filteredReports.length,
                       separatorBuilder: (_, _) =>
                           const SizedBox(height: 8),
                       itemBuilder: (context, index) {
-                        final report = _reports[index];
+                        final report = filteredReports[index];
                         return Card(
                           margin: EdgeInsets.zero,
                           child: ListTile(
@@ -1952,6 +1993,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                         );
+                      },
+                    );
                       },
                     ),
             ),
