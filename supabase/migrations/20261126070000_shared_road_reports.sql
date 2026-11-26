@@ -54,6 +54,7 @@ create policy "Cyclists can remove their own road reports"
 create or replace function public.prepare_road_report()
 returns trigger
 language plpgsql
+security definer
 set search_path = ''
 as $$
 declare
@@ -119,3 +120,12 @@ begin
   end if;
 end;
 $$;
+
+-- Remove expired rows on the server every 10 minutes to keep the shared table small.
+create extension if not exists pg_cron with schema pg_catalog;
+
+select cron.schedule(
+  'fietsradar-expired-road-report-cleanup',
+  '*/10 * * * *',
+  $$delete from public.road_reports where expires_at <= now()$$
+);

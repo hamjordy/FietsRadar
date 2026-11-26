@@ -49,7 +49,7 @@ De gedeelde meldingen gebruiken Supabase. De app blijft ook zonder Supabase voll
    - `SUPABASE_URL`: de Project URL
    - `SUPABASE_PUBLISHABLE_KEY`: de publishable key
 
-Gebruik nooit een Supabase secret key of service-role key in de app of GitHub Actions build. De database gebruikt Row Level Security; clients krijgen alleen actieve meldingen te lezen, kunnen eigen meldingen publiceren en kunnen alleen hun eigen recente meldingen verwijderen. Publicaties krijgen een server-side vervaltijd en er geldt een basislimiet per gebruiker.
+Gebruik nooit een Supabase secret key of service-role key in de app of GitHub Actions build. De database gebruikt Row Level Security; clients krijgen alleen actieve meldingen te lezen, kunnen eigen meldingen publiceren en kunnen alleen hun eigen recente meldingen verwijderen. Publicaties krijgen een server-side vervaltijd; een geplande database-taak verwijdert verlopen meldingen elke tien minuten. De server controleert ook een basislimiet per gebruiker.
 
 Om lokaal met live meldingen te bouwen:
 
