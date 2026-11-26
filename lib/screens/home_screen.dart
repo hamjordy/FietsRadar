@@ -1043,7 +1043,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ],
                 ),
-              )
+              ),
             if (_rerouting)
               const Padding(
                 padding: EdgeInsets.only(top: 10),
