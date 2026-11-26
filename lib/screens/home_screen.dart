@@ -1025,6 +1025,103 @@ class _HomeScreenState extends State<HomeScreen> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
+  void _showReportDetails(RoadReport report) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.black12,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: report.type.color.withValues(alpha: 0.13),
+                    child: Icon(report.type.icon, color: report.type.color, size: 27),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Text(
+                      report.type.label,
+                      style: const TextStyle(
+                        color: FietsRadarApp.forest,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                report.type.description,
+                style: const TextStyle(color: Colors.black87, height: 1.4),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  const Icon(Icons.schedule_rounded, size: 18, color: Colors.black54),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Gemeld om ${formatClock(report.createdAt)}',
+                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    report.isShared ? Icons.public_rounded : Icons.phone_android_rounded,
+                    size: 18,
+                    color: Colors.black54,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    report.isShared ? 'Gedeeld met andere fietsers' : 'Alleen zichtbaar op dit toestel',
+                    style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.pop(sheetContext);
+                    _mapController.move(report.location, 17);
+                  },
+                  icon: const Icon(Icons.center_focus_strong_rounded),
+                  label: const Text('Toon melding op kaart'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   List<Marker> _buildMarkers() {
     final markers = <Marker>[];
 
@@ -1074,19 +1171,22 @@ class _HomeScreenState extends State<HomeScreen> {
           point: report.location,
           width: 38,
           height: 38,
-          child: Container(
-            decoration: BoxDecoration(
-              color: report.type.color,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2.5),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  blurRadius: 7,
-                ),
-              ],
+          child: GestureDetector(
+            onTap: () => _showReportDetails(report),
+            child: Container(
+              decoration: BoxDecoration(
+                color: report.type.color,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.16),
+                    blurRadius: 7,
+                  ),
+                ],
+              ),
+              child: Icon(report.type.icon, color: Colors.white, size: 19),
             ),
-            child: Icon(report.type.icon, color: Colors.white, size: 19),
           ),
         ),
       );
