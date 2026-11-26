@@ -1084,7 +1084,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Icon(Icons.schedule_rounded, size: 18, color: Colors.black54),
                   const SizedBox(width: 8),
                   Text(
-                    'Gemeld om ${formatClock(report.createdAt)}',
+                    'Gemeld om ${formatClock(report.createdAt)} · ${formatRelativeTime(report.createdAt)}',
                     style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
                   ),
                 ],
@@ -1966,7 +1966,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   const TextStyle(fontWeight: FontWeight.w800),
                             ),
                             subtitle: Text(
-                              '${report.isShared ? 'Gedeeld' : 'Alleen op dit toestel'} · ${formatClock(report.createdAt)}',
+                              '${report.isShared ? 'Gedeeld' : 'Alleen op dit toestel'} · ${formatRelativeTime(report.createdAt)}',
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
