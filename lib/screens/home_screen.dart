@@ -2571,6 +2571,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                   Text(
                                     '${report.isShared ? 'Gedeeld' : 'Alleen op dit toestel'} · ${formatRelativeTime(report.createdAt)}',
                                   ),
+                                  if (_position != null) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Ongeveer ${formatDistance(const Distance().as(LengthUnit.Meter, _currentLocation, report.location))} van je locatie',
+                                      style: const TextStyle(fontSize: 11, color: Colors.black54),
+                                    ),
+                                  ],
                                   const SizedBox(height: 3),
                                   if (report.isResolved)
                                     const Text(
