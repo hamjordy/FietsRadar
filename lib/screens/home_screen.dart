@@ -1059,7 +1059,7 @@ class _HomeScreenState extends State<HomeScreen> {
     var closestMeters = 150.0;
 
     for (final report in _reports) {
-      if (_announcedNearbyReportIds.contains(report.id)) continue;
+      if (!report.isActive || _announcedNearbyReportIds.contains(report.id)) continue;
       final meters = distance.as(LengthUnit.Meter, current, report.location);
       if (meters <= closestMeters) {
         closestMeters = meters;
@@ -1610,7 +1610,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     for (final report in _reports.where((report) =>
-        _selectedMapReportFilter == null || report.type == _selectedMapReportFilter)) {
+        report.isActive &&
+        (_selectedMapReportFilter == null || report.type == _selectedMapReportFilter))) {
       final reportDistance = _position == null
           ? null
           : const Distance().as(
