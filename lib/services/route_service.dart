@@ -201,6 +201,7 @@ class RouteService {
   Future<BikeRoute> getBikeRoute({
     required LatLng start,
     required LatLng destination,
+    String profile = 'trekking',
   }) async {
     final uri = Uri.https(
       'brouter.de',
@@ -208,7 +209,7 @@ class RouteService {
       {
         'lonlats':
             '${start.longitude},${start.latitude}|${destination.longitude},${destination.latitude}',
-        'profile': 'trekking',
+        'profile': profile,
         'alternativeidx': '0',
         'format': 'geojson',
         'timode': '1',
