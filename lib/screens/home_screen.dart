@@ -82,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _rerouting = false;
   bool _backgroundTrackingActive = false;
   bool _arrivalAnnounced = false;
+  final Set<String> _announcedNearbyReportIds = <String>{};
   DateTime? _lastRerouteAttempt;
 
   LatLng get _currentLocation => _position == null
@@ -516,6 +517,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _startNavigation() async {
     if (_route == null || _destination == null) return;
+    _announcedNearbyReportIds.clear();
     setState(() {
       _navigating = true;
       _offRoute = false;
@@ -617,6 +619,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final current = LatLng(position.latitude, position.longitude);
     const distance = Distance();
+    _checkNearbyReportAlerts(current, distance);
     final nearestIndex = _nearestRouteIndex(route, current);
     final nearestDistance = distance.as(
       LengthUnit.Meter,
@@ -695,6 +698,29 @@ class _HomeScreenState extends State<HomeScreen> {
         _speechService.announce('Je bent aangekomen op je bestemming.'),
       );
     }
+  }
+
+  void _checkNearbyReportAlerts(LatLng current, Distance distance) {
+    RoadReport? closestReport;
+    var closestMeters = 150.0;
+
+    for (final report in _reports) {
+      if (_announcedNearbyReportIds.contains(report.id)) continue;
+      final meters = distance.as(LengthUnit.Meter, current, report.location);
+      if (meters <= closestMeters) {
+        closestMeters = meters;
+        closestReport = report;
+      }
+    }
+
+    if (closestReport == null) return;
+    _announcedNearbyReportIds.add(closestReport.id);
+    final roundedMeters = (closestMeters / 10).round() * 10;
+    unawaited(
+      _speechService.announce(
+        'Let op. ${closestReport.type.label} in de buurt, op ongeveer $roundedMeters meter.',
+      ),
+    );
   }
 
   Future<void> _recalculateRoute() async {
