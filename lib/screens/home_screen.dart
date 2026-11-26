@@ -1427,6 +1427,9 @@ class _HomeScreenState extends State<HomeScreen> {
         : route.estimatedDuration.inMinutes;
     final instruction = _nextInstruction;
     final metersToTurn = _metersToNextInstruction;
+    final progress = _navigating && route.distanceMeters > 0
+        ? (1 - remaining / route.distanceMeters).clamp(0.0, 1.0).toDouble()
+        : 0.0;
     final turnIcon = instruction == null
         ? Icons.flag_rounded
         : instruction.command == 1
@@ -1564,6 +1567,43 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+            if (_navigating) ...[
+              const SizedBox(height: 13),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'ROUTEVOORTGANG',
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 10,
+                      letterSpacing: 0.8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    '${(progress * 100).round()}%',
+                    style: const TextStyle(
+                      color: FietsRadarApp.forest,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: LinearProgressIndicator(
+                  value: progress,
+                  minHeight: 7,
+                  backgroundColor: FietsRadarApp.lime.withValues(alpha: 0.35),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    FietsRadarApp.forest,
+                  ),
+                ),
+              ),
+            ],
             if (_navigating && _backgroundTrackingActive)
               const Padding(
                 padding: EdgeInsets.only(top: 9),
