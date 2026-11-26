@@ -939,7 +939,7 @@ class _HomeScreenState extends State<HomeScreen> {
     await _startPositionTracking(keepAliveInBackground: true);
     if (!mounted || !_navigating) return;
     await _persistActiveRideSession();
-    await _speechService.announce(
+    await _announce(
       'FietsRadar navigatie gestart. '
       'Je route is ${formatDistance(_route!.distanceMeters)}. '
       'Volg de route op de kaart en let op het verkeer.',
@@ -970,7 +970,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _lastRidePosition = _position;
     });
     await _persistActiveRideSession();
-    await _speechService.announce('Je fietsnavigatie wordt hervat.');
+    await _announce('Je fietsnavigatie wordt hervat.');
   }
 
   Future<void> _stopNavigation() async {
@@ -1106,14 +1106,14 @@ class _HomeScreenState extends State<HomeScreen> {
           _lastSpokenInstructionIndex != _instructionCursor) {
         _lastSpokenInstructionIndex = _instructionCursor;
         _lastApproachInstructionIndex = _instructionCursor;
-        unawaited(_speechService.announce('Nu: ${instruction.spokenText}.'));
+        unawaited(_announce('Nu: ${instruction.spokenText}.'));
       } else if (metersToTurn > 30 &&
           metersToTurn <= 180 &&
           _lastApproachInstructionIndex != _instructionCursor) {
         _lastApproachInstructionIndex = _instructionCursor;
         final roundedMeters = (metersToTurn / 10).round() * 10;
         unawaited(
-          _speechService.announce(
+          _announce(
             'Over ongeveer $roundedMeters meter, ${instruction.spokenText}.',
           ),
         );
@@ -1141,7 +1141,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_navigating || _arrivalAnnounced) return;
     setState(() => _arrivalAnnounced = true);
     await _saveCurrentRide();
-    await _speechService.announce('Je bent aangekomen op je bestemming.');
+    await _announce('Je bent aangekomen op je bestemming.');
     if (!mounted) return;
 
     // The destination is reached: stop the foreground navigation service so
@@ -1182,7 +1182,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _announcedNearbyReportIds.add(closestReport.id);
     final roundedMeters = (closestMeters / 10).round() * 10;
     unawaited(
-      _speechService.announce(
+      _announce(
         'Let op. ${closestReport.type.label} in de buurt, op ongeveer $roundedMeters meter.',
       ),
     );
@@ -1197,7 +1197,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     _lastRerouteAttempt = DateTime.now();
     setState(() => _rerouting = true);
-    await _speechService.announce(
+    await _announce(
       'Je bent van de route afgeweken. Ik bereken een nieuwe fietsroute.',
     );
 
@@ -1227,7 +1227,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.fromLTRB(44, 150, 44, 170),
         ),
       );
-      await _speechService.announce(
+      await _announce(
         'De nieuwe fietsroute is klaar. ${formatDistance(route.distanceMeters)} naar ${destination.name}.',
       );
     } catch (_) {
@@ -1236,7 +1236,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _showMessage(
         'Nieuwe route berekenen is niet gelukt. Controleer je internetverbinding.',
       );
-      await _speechService.announce(
+      await _announce(
         'Het opnieuw berekenen van de route is niet gelukt. Volg de kaart voorzichtig.',
       );
     }
