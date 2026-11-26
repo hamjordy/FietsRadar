@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
@@ -30,7 +31,30 @@ class LocationService {
     );
   }
 
-  Stream<Position> watchPosition() {
+  /// Tracks GPS continuously. On Android, a user-started navigation session
+  /// can opt into a location foreground service with an ongoing notification.
+  Stream<Position> watchPosition({
+    bool keepAliveInBackground = false,
+  }) {
+    if (defaultTargetPlatform == TargetPlatform.android &&
+        keepAliveInBackground) {
+      return Geolocator.getPositionStream(
+        locationSettings: AndroidSettings(
+          accuracy: LocationAccuracy.bestForNavigation,
+          distanceFilter: 5,
+          intervalDuration: const Duration(seconds: 3),
+          foregroundNotificationConfig: const ForegroundNotificationConfig(
+            notificationTitle: 'FietsRadar · Navigatie actief',
+            notificationText:
+                'Je GPS-route wordt bijgehouden. Open FietsRadar om de navigatie te stoppen.',
+            notificationChannelName: 'FietsRadar navigatie',
+            enableWakeLock: true,
+            setOngoing: true,
+          ),
+        ),
+      );
+    }
+
     return Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.bestForNavigation,
