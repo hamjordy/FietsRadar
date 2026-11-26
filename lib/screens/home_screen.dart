@@ -438,7 +438,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         FlutterMap(
           mapController: _mapController,
-          options: MapOptions(
+          options: const MapOptions(
             initialCenter: _netherlandsCenter,
             initialZoom: 7.5,
             minZoom: 4,
@@ -468,7 +468,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             MarkerLayer(markers: _buildMarkers()),
-            RichAttributionWidget(
+            const RichAttributionWidget(
               attributions: const [
                 TextSourceAttribution('© OpenStreetMap contributors'),
               ],
@@ -661,7 +661,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         if (_routeLoading)
-          Positioned(
+          const Positioned(
             left: 20,
             right: 20,
             bottom: 20,
