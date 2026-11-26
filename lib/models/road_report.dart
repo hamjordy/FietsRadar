@@ -74,18 +74,21 @@ class RoadReport {
     }
     final remaining = expiry.difference(now);
     if (remaining <= Duration.zero) return 'Verlopen';
-    if (remaining.inMinutes < 1) return 'Verloopt binnen een minuut';
-    if (remaining.inHours < 1) {
-      return 'Nog geldig · verloopt over $remaining.inMinutes min';
+    final remainingMinutes = remaining.inMinutes;
+    final remainingHours = remaining.inHours;
+    final remainingDays = remaining.inDays;
+    if (remainingMinutes < 1) return 'Verloopt binnen een minuut';
+    if (remainingHours < 1) {
+      return 'Nog geldig · verloopt over $remainingMinutes min';
     }
-    if (remaining.inDays < 1) {
-      final hours = remaining.inHours;
-      final minutes = remaining.inMinutes.remainder(60);
+    if (remainingDays < 1) {
+      final hours = remainingHours;
+      final minutes = remainingMinutes.remainder(60);
       return minutes == 0
           ? 'Nog geldig · verloopt over $hours uur'
           : 'Nog geldig · verloopt over $hours u $minutes min';
     }
-    return 'Nog geldig · verloopt over ${remaining.inDays} dagen';
+    return 'Nog geldig · verloopt over $remainingDays dagen';
   }
 
   Map<String, dynamic> toJson() => {
