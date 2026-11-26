@@ -1683,8 +1683,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _routePanel(BikeRoute route) {
     final remaining = _navigating ? _remainingMeters : route.distanceMeters;
+    final estimatedRemainingSeconds = route.distanceMeters > 0
+        ? route.estimatedDuration.inSeconds *
+            (remaining / route.distanceMeters)
+        : route.estimatedDuration.inSeconds;
     final minutes = _navigating
-        ? (remaining / 1000 / 15 * 60).ceil()
+        ? (_arrivalAnnounced
+            ? 0
+            : math.max(1, (estimatedRemainingSeconds / 60).ceil()))
         : route.estimatedDuration.inMinutes;
     final instruction = _nextInstruction;
     final metersToTurn = _metersToNextInstruction;
