@@ -2245,6 +2245,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             0,
                             instruction.pointIndex,
                           );
+                          final isCurrentInstruction =
+                              _navigating && index == _instructionCursor;
                           final isLeft = instruction.command == 2 ||
                               instruction.command == 3 ||
                               instruction.command == 4 ||
@@ -2269,17 +2271,58 @@ class _HomeScreenState extends State<HomeScreen> {
                                               instruction.command == 15
                                           ? Icons.u_turn_left_rounded
                                           : Icons.straight_rounded;
-                          return ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(
-                              backgroundColor: const Color(0xFFEAF2E6),
-                              child: Icon(icon, color: FietsRadarApp.forest),
+                          return Container(
+                            decoration: BoxDecoration(
+                              color: isCurrentInstruction
+                                  ? const Color(0xFFEAF2E6)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(14),
                             ),
-                            title: Text(
-                              instruction.label,
-                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            child: ListTile(
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                              leading: CircleAvatar(
+                                backgroundColor: isCurrentInstruction
+                                    ? FietsRadarApp.forest
+                                    : const Color(0xFFEAF2E6),
+                                child: Icon(
+                                  icon,
+                                  color: isCurrentInstruction
+                                      ? Colors.white
+                                      : FietsRadarApp.forest,
+                                ),
+                              ),
+                              title: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      instruction.label,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        color: isCurrentInstruction
+                                            ? FietsRadarApp.forest
+                                            : Colors.black87,
+                                      ),
+                                    ),
+                                  ),
+                                  if (isCurrentInstruction)
+                                    const Chip(
+                                      label: Text('VOLGENDE'),
+                                      visualDensity: VisualDensity.compact,
+                                      backgroundColor: Colors.white,
+                                      labelStyle: TextStyle(
+                                        color: FietsRadarApp.forest,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                isCurrentInstruction
+                                    ? 'Nog ${formatDistance(_metersToNextInstruction)} tot deze afslag'
+                                    : 'Na ${formatDistance(distanceFromStart)} vanaf vertrek',
+                              ),
                             ),
-                            subtitle: Text('Na ${formatDistance(distanceFromStart)} vanaf vertrek'),
                           );
                         },
                       ),
