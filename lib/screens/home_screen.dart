@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   double get _speedKmh {
     final speed = (_position?.speed ?? 0) * 3.6;
-    return speed.isFinite ? math.max(0, speed) : 0;
+    return speed.isFinite ? math.max(0.0, speed).toDouble() : 0.0;
   }
 
   @override
@@ -66,7 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _positionSubscription?.cancel();
     _searchController.dispose();
-    _speechService.dispose();
+    unawaited(_speechService.dispose());
     super.dispose();
   }
 
@@ -79,7 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _locationLoading = false;
         _locationError = null;
       });
-      _mapController.move(_currentLocation, 15);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _mapController.move(_currentLocation, 15);
+      });
       await _positionSubscription?.cancel();
       _positionSubscription = _locationService.watchPosition().listen(
         _onPositionChanged,
@@ -233,8 +235,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (nearestDistance > 100 && !_offRoute) {
       setState(() => _offRoute = true);
-      _speechService.announce(
-        'Let op. Je lijkt van de geplande fietsroute af te wijken.',
+      unawaited(
+        _speechService.announce(
+          'Let op. Je lijkt van de geplande fietsroute af te wijken.',
+        ),
       );
     } else if (nearestDistance <= 55 && _offRoute) {
       setState(() => _offRoute = false);
@@ -243,7 +247,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (nearestIndex > _lastAnnouncedProgressIndex &&
         nearestIndex == route.points.length - 1) {
       _lastAnnouncedProgressIndex = nearestIndex;
-      _speechService.announce('Je hebt je bestemming bijna bereikt.');
+      unawaited(
+        _speechService.announce('Je hebt je bestemming bijna bereikt.'),
+      );
     }
   }
 
