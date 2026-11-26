@@ -1288,6 +1288,21 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _markReportResolved(RoadReport report) async {
+    if (!report.isShared || report.isResolved ||
+        report.ownerId != _sharedReportService.currentUserId) {
+      return;
+    }
+    try {
+      await _sharedReportService.resolveReport(report.id);
+      if (!mounted) return;
+      _showMessage('Melding als opgelost gemarkeerd.');
+    } catch (_) {
+      if (!mounted) return;
+      _showMessage('Melding kon niet als opgelost worden gemarkeerd.');
+    }
+  }
+
   Future<void> _addReport(ReportType type) async {
     await _reportsLoadFuture;
     final position = _position;
@@ -2495,6 +2510,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                     '${report.isShared ? 'Gedeeld' : 'Alleen op dit toestel'} · ${formatRelativeTime(report.createdAt)}',
                                   ),
                                   const SizedBox(height: 3),
+                                  if (report.isResolved)
+                                    const Text(
+                                      'Opgelost door melder',
+                                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: FietsRadarApp.forest),
+                                    ),
                                   Text(
                                     report.validityLabelAt(DateTime.now()),
                                     style: TextStyle(
@@ -2522,6 +2542,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                   },
                                   icon: const Icon(Icons.map_outlined),
                                 ),
+                                if (report.isShared && !report.isResolved &&
+                                    report.ownerId == _sharedReportService.currentUserId)
+                                  IconButton(
+                                    tooltip: 'Markeer als opgelost',
+                                    onPressed: () => _markReportResolved(report),
+                                    icon: const Icon(Icons.check_circle_outline_rounded, color: FietsRadarApp.forest),
+                                  ),
                                 if (!report.isShared ||
                                     report.ownerId ==
                                         _sharedReportService.currentUserId)
