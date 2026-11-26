@@ -978,6 +978,30 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (target == null) return;
 
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Melding verwijderen?'),
+        content: Text(
+          'Weet je zeker dat je deze melding wilt verwijderen: ${target!.type.label.toLowerCase()}?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Annuleren'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFB42318),
+            ),
+            child: const Text('Verwijderen'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || confirmed != true) return;
+
     if (target.isShared) {
       if (target.ownerId != _sharedReportService.currentUserId) {
         _showMessage('Je kunt alleen je eigen gedeelde meldingen verwijderen.');
