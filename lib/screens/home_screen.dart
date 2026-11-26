@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -137,11 +138,10 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
 
-    if (keepAliveInBackground) {
-      setState(() => _backgroundTrackingActive = true);
-    } else {
-      setState(() => _backgroundTrackingActive = false);
-    }
+    setState(() {
+      _backgroundTrackingActive = keepAliveInBackground &&
+          defaultTargetPlatform == TargetPlatform.android;
+    });
   }
 
   void _onPositionChanged(Position position) {
@@ -192,6 +192,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _selectDestination(Place place) async {
     FocusScope.of(context).unfocus();
+    if (_navigating) {
+      await _stopNavigation();
+    }
     if (_position == null) {
       await _initializeLocation();
     }
