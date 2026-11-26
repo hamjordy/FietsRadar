@@ -100,6 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _arrivalAnnounced = false;
   bool _voiceGuidanceEnabled = true;
   bool _nearbySafetyAlertsEnabled = true;
+  bool _showReportDistances = true;
+  static const String _showReportDistancesKey = 'fietsradar.show_report_distances.v1';
   static const String _voiceGuidanceKey = 'fietsradar.voice_guidance.v1';
   static const String _nearbySafetyAlertsKey = 'fietsradar.nearby_safety_alerts.v1';
   final Set<String> _announcedNearbyReportIds = <String>{};
@@ -299,10 +301,12 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final voice = await _preferences.getBool(_voiceGuidanceKey);
       final alerts = await _preferences.getBool(_nearbySafetyAlertsKey);
+      final distances = await _preferences.getBool(_showReportDistancesKey);
       if (!mounted) return;
       setState(() {
         _voiceGuidanceEnabled = voice ?? true;
         _nearbySafetyAlertsEnabled = alerts ?? true;
+        _showReportDistances = distances ?? true;
       });
     } catch (_) {
       // Defaults keep navigation and nearby safety alerts enabled.
@@ -329,6 +333,17 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       setState(() => _nearbySafetyAlertsEnabled = !enabled);
       _showMessage('De veiligheidsinstelling kon niet worden opgeslagen.');
+    }
+  }
+
+  Future<void> _setShowReportDistances(bool enabled) async {
+    setState(() => _showReportDistances = enabled);
+    try {
+      await _preferences.setBool(_showReportDistancesKey, enabled);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _showReportDistances = !enabled);
+      _showMessage('De kaartinstelling kon niet worden opgeslagen.');
     }
   }
 
@@ -1730,7 +1745,7 @@ class _HomeScreenState extends State<HomeScreen> {
               _currentLocation,
               report.location,
             );
-      final showDistance = reportDistance != null && reportDistance <= 1000;
+      final showDistance = _showReportDistances && reportDistance != null && reportDistance <= 1000;
       final markerWidth = showDistance ? 76.0 : 44.0;
       final markerHeight = showDistance ? 66.0 : 44.0;
 
@@ -2958,6 +2973,18 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   value: _voiceGuidanceEnabled,
                   onChanged: _setVoiceGuidanceEnabled,
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                SwitchListTile.adaptive(
+                  secondary: const Icon(Icons.map_outlined,
+                      color: FietsRadarApp.forest),
+                  title: const Text('Afstand bij meldingen op de kaart',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: const Text(
+                    'Toon de afstand tot actieve wegmeldingen binnen één kilometer.',
+                  ),
+                  value: _showReportDistances,
+                  onChanged: _setShowReportDistances,
                 ),
                 const Divider(height: 1, indent: 16, endIndent: 16),
                 SwitchListTile.adaptive(
