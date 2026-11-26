@@ -3004,9 +3004,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          Card(
+          const Card(
             margin: EdgeInsets.zero,
-            child: const Padding(
+            child: Padding(
               padding: EdgeInsets.all(16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
