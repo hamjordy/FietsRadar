@@ -610,7 +610,10 @@ class _HomeScreenState extends State<HomeScreen> {
       route,
       LatLng(position.latitude, position.longitude),
     );
-    return _distanceAlongRoute(route, nearestIndex, instruction.pointIndex);
+    final progressIndex = _navigating
+        ? math.max(_furthestRouteIndex, nearestIndex)
+        : nearestIndex;
+    return _distanceAlongRoute(route, progressIndex, instruction.pointIndex);
   }
 
   void _checkRouteProgress() {
