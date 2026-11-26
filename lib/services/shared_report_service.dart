@@ -89,6 +89,18 @@ class SharedReportService {
     return RoadReport.fromRemoteJson(row);
   }
 
+  Future<void> resolveReport(String reportId) async {
+    final userId = currentUserId;
+    if (userId == null) {
+      throw StateError('Je bent niet verbonden met de meldingenserver.');
+    }
+    await _client
+        .from('road_reports')
+        .update({'is_resolved': true})
+        .eq('id', reportId)
+        .eq('user_id', userId);
+  }
+
   Future<void> deleteReport(String reportId) async {
     final userId = currentUserId;
     if (userId == null) {
