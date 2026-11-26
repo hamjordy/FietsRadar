@@ -16,6 +16,7 @@
 - **Favorieten en recente bestemmingen:** lokaal opgeslagen op het toestel.
 - **Ritregistratie:** tijdens actieve navigatie telt FietsRadar geldige GPS-afstanden op en filtert onnauwkeurige GPS-fixes en onwaarschijnlijke sprongen. Je kunt een rit pauzeren en hervatten; gepauzeerde tijd en GPS-afstand tellen niet mee.
 - **Ritgeschiedenis:** afgeronde ritten worden lokaal op het toestel opgeslagen met datum, bestemming, afstand en duur. De laatste 100 ritten blijven bewaard; er wordt geen GPS-route of locatiegeschiedenis opgeslagen.
+- **Herstel actieve rit:** FietsRadar bewaart lokaal een beperkte sessiesamenvatting en probeert na een onverwachte app-afsluiting de bestemming, route, afgelegde afstand en pauzestatus te herstellen. GPS-punten worden niet opgeslagen; de route wordt opnieuw berekend vanaf de actuele locatie.
 - **Wegmeldingen:** gevaar, wegwerkzaamheden, obstakels, gladheid en ongevallen.
 - **Live meldingen (optioneel):** via Supabase Realtime; zonder backendconfiguratie blijven meldingen lokaal.
 - **Android CI:** GitHub Actions voert Flutter-analyse en tests uit en bouwt een debug-APK.
@@ -82,7 +83,7 @@ De app gebruikt publieke diensten om zonder API-sleutel te kunnen starten. Dit b
 
 ## Wat volgt hierna?
 
-De actuele ontwikkelvolgorde staat in [docs/ROADMAP.md](docs/ROADMAP.md). De belangrijkste volgende onderdelen zijn sessieherstel, bevestigen/betwisten van wegmeldingen, betrouwbare verkeersdata, praktijktests en voorbereiding van een ondertekende release.
+De actuele ontwikkelvolgorde staat in [docs/ROADMAP.md](docs/ROADMAP.md). De belangrijkste volgende onderdelen zijn bevestigen/betwisten van wegmeldingen, betrouwbare verkeersdata, praktijktests en voorbereiding van een ondertekende release.
 
 ## Privacy in deze versie
 
