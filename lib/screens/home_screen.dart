@@ -1425,19 +1425,88 @@ class _HomeScreenState extends State<HomeScreen> {
         : route.estimatedDuration.inMinutes;
     final instruction = _nextInstruction;
     final metersToTurn = _metersToNextInstruction;
+    final turnIcon = instruction == null
+        ? Icons.flag_rounded
+        : instruction.command == 1
+            ? Icons.arrow_upward_rounded
+            : instruction.command == 13 || instruction.command == 14
+                ? Icons.alt_route_rounded
+                : instruction.command == 5 ||
+                        instruction.command == 6 ||
+                        instruction.command == 7 ||
+                        instruction.command == 9 ||
+                        instruction.command == 18
+                    ? Icons.turn_right_rounded
+                    : Icons.turn_left_rounded;
 
     return Card(
       margin: EdgeInsets.zero,
+      elevation: 10,
+      shadowColor: Colors.black.withValues(alpha: 0.18),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(17, 15, 17, 15),
+        padding: const EdgeInsets.fromLTRB(16, 15, 16, 15),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (_navigating) ...[
+              Row(
+                children: [
+                  Container(
+                    width: 58,
+                    height: 58,
+                    decoration: BoxDecoration(
+                      color: FietsRadarApp.forest,
+                      borderRadius: BorderRadius.circular(17),
+                    ),
+                    child: Icon(turnIcon, color: Colors.white, size: 34),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          instruction?.label ?? 'Volg de route naar je bestemming',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                            color: FietsRadarApp.forest,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          instruction == null
+                              ? 'Volgende aanwijzing'
+                              : 'Over ${formatDistance(metersToTurn)}',
+                          style: const TextStyle(
+                            color: Colors.black54,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_rerouting)
+                    const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(strokeWidth: 2.5),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+            ],
             Row(
               children: [
                 Container(
-                  width: 42,
-                  height: 42,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
                     color: FietsRadarApp.lime.withValues(alpha: 0.42),
                     borderRadius: BorderRadius.circular(13),
@@ -1445,21 +1514,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: const Icon(
                     Icons.directions_bike_rounded,
                     color: FietsRadarApp.forest,
-                    size: 25,
+                    size: 24,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         _navigating
-                            ? (_offRoute ? 'Route controleren' : 'Navigatie actief')
+                            ? (_offRoute ? 'Route controleren' : 'Je bent onderweg')
                             : 'Fietsroute gevonden',
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 14,
                         ),
                       ),
                       Text(
@@ -1480,14 +1549,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       formatDistance(remaining),
                       style: const TextStyle(
-                        fontSize: 19,
+                        fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: FietsRadarApp.forest,
                       ),
                     ),
                     Text(
-                      '$minutes min',
-                      style: const TextStyle(color: Colors.black54, fontSize: 12),
+                      _navigating ? 'nog $minutes min' : '$minutes min fietsen',
+                      style: const TextStyle(color: Colors.black54, fontSize: 11),
                     ),
                   ],
                 ),
@@ -1498,15 +1567,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: EdgeInsets.only(top: 9),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.screen_lock_portrait_rounded,
-                      color: Color(0xFF358B5C),
-                      size: 16,
-                    ),
+                    Icon(Icons.screen_lock_portrait_rounded,
+                        color: Color(0xFF358B5C), size: 15),
                     SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'GPS blijft actief wanneer je scherm uitstaat',
+                        'Navigatie blijft actief met je scherm uit',
                         style: TextStyle(
                           color: Color(0xFF358B5C),
                           fontWeight: FontWeight.w700,
@@ -1517,97 +1583,28 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-            if (_rerouting)
-              const Padding(
-                padding: EdgeInsets.only(top: 10),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 15,
-                      height: 15,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Nieuwe fietsroute berekenen…',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else if (_navigating && instruction != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-                  decoration: BoxDecoration(
-                    color: FietsRadarApp.lime.withValues(alpha: 0.25),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        instruction.command == 1
-                            ? Icons.arrow_upward_rounded
-                            : instruction.command == 13 || instruction.command == 14
-                                ? Icons.alt_route_rounded
-                                : instruction.command == 5 ||
-                                        instruction.command == 6 ||
-                                        instruction.command == 7 ||
-                                        instruction.command == 9 ||
-                                        instruction.command == 18
-                                    ? Icons.turn_right_rounded
-                                    : Icons.turn_left_rounded,
-                        color: FietsRadarApp.forest,
-                        size: 25,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          instruction.label,
-                          style: const TextStyle(
-                            color: FietsRadarApp.forest,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        formatDistance(metersToTurn),
-                        style: const TextStyle(
-                          color: FietsRadarApp.forest,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             if (_offRoute)
               const Padding(
-                padding: EdgeInsets.only(top: 10),
+                padding: EdgeInsets.only(top: 9),
                 child: Row(
                   children: [
                     Icon(Icons.warning_amber_rounded,
-                        color: Color(0xFFD97706), size: 18),
+                        color: Color(0xFFD97706), size: 17),
                     SizedBox(width: 6),
                     Expanded(
                       child: Text(
-                        'Je lijkt buiten de geplande route te fietsen.',
+                        'Je fietst buiten de geplande route. We zoeken een nieuwe route.',
                         style: TextStyle(
                           color: Color(0xFF9A5B00),
                           fontWeight: FontWeight.w600,
-                          fontSize: 12,
+                          fontSize: 11,
                         ),
                       ),
                     ),
                   ],
                 ),
               ),
-            const SizedBox(height: 13),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
@@ -1615,7 +1612,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   backgroundColor: _navigating
                       ? const Color(0xFFB42318)
                       : FietsRadarApp.forest,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
                 onPressed: _navigating ? _stopNavigation : _startNavigation,
                 icon: Icon(
@@ -1623,6 +1623,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 label: Text(
                   _navigating ? 'Navigatie stoppen' : 'Start navigatie',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
             ),
