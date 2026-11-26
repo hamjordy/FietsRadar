@@ -1076,10 +1076,12 @@ class _HomeScreenState extends State<HomeScreen> {
                             textInputAction: TextInputAction.search,
                             onSubmitted: _searchPlaces,
                             onChanged: (value) {
-                              if (value.trim().length < 3 &&
-                                  _suggestions.isNotEmpty) {
-                                setState(() => _suggestions = []);
-                              }
+                              setState(() {
+                                if (value.trim().length < 3) {
+                                  _suggestions = [];
+                                }
+                                _searchError = null;
+                              });
                             },
                             decoration: const InputDecoration(
                               hintText: 'Waar wil je naartoe fietsen?',
