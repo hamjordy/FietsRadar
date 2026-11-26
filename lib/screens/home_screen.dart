@@ -1077,6 +1077,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showReportDetails(RoadReport report) {
+    final distanceMeters = _position == null
+        ? null
+        : const Distance().as(
+            LengthUnit.Meter,
+            _currentLocation,
+            report.location,
+          );
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -1129,6 +1136,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(color: Colors.black87, height: 1.4),
               ),
               const SizedBox(height: 14),
+              if (distanceMeters != null) ...[
+                Row(
+                  children: [
+                    const Icon(Icons.near_me_rounded, size: 18, color: FietsRadarApp.forest),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Ongeveer ${formatDistance(distanceMeters)} van jouw locatie',
+                      style: const TextStyle(color: FietsRadarApp.forest, fontWeight: FontWeight.w800),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+              ],
               Row(
                 children: [
                   const Icon(Icons.schedule_rounded, size: 18, color: Colors.black54),
@@ -1217,26 +1237,68 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     for (final report in _reports) {
+      final reportDistance = _position == null
+          ? null
+          : const Distance().as(
+              LengthUnit.Meter,
+              _currentLocation,
+              report.location,
+            );
+      final showDistance = reportDistance != null && reportDistance <= 1000;
+      final markerWidth = showDistance ? 76.0 : 44.0;
+      final markerHeight = showDistance ? 66.0 : 44.0;
+
       markers.add(
         Marker(
           point: report.location,
-          width: 38,
-          height: 38,
+          width: markerWidth,
+          height: markerHeight,
           child: GestureDetector(
             onTap: () => _showReportDetails(report),
-            child: Container(
-              decoration: BoxDecoration(
-                color: report.type.color,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.16),
-                    blurRadius: 7,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: report.type.color,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.20),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Icon(report.type.icon, color: Colors.white, size: 19),
+                  child: Icon(report.type.icon, color: Colors.white, size: 21),
+                ),
+                if (showDistance)
+                  Container(
+                    margin: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(9),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.14),
+                          blurRadius: 5,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      formatDistance(reportDistance),
+                      style: const TextStyle(
+                        color: FietsRadarApp.forest,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ),
         ),
