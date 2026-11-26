@@ -7,7 +7,8 @@
 ## Wat zit er in deze eerste versie?
 
 - **GPS-locatie:** vraagt Android-locatietoestemming en toont de actuele positie op de kaart.
-- **Snelheidsmeter:** toont de actuele GPS-snelheid in km/u zolang de app open is.
+- **Snelheidsmeter:** toont de actuele GPS-snelheid in km/u.
+- **Achtergrondnavigatie (Android):** tijdens een zelf gestarte navigatierit gebruikt FietsRadar een locatie-voorgrondservice met een blijvende Android-melding, zodat GPS-updates doorgaan wanneer het scherm uitstaat of je een andere app opent. De service stopt wanneer je de navigatie stopt.
 - **Bestemming zoeken:** zoekt Nederlandse adressen en plaatsen.
 - **Fietsroute:** vraagt een fietsroute op via het BRouter-profiel `trekking` en tekent die op de kaart.
 - **Gesproken route-instructies:** BRouter levert afslagaanwijzingen zoals linksaf, rechtsaf en rotondes; FietsRadar kondigt de volgende manoeuvre in het Nederlands aan.
@@ -60,7 +61,7 @@ Dit is nadrukkelijk nog geen volledige vervanger van Waze of Flitsmeister. De ba
 7. Uitgebreide tests op echte Android-telefoons, batterijverbruik en GPS-nauwkeurigheid.
 8. Ondertekende release-build en voorbereiding voor publicatie in Google Play.
 
-De huidige GPS-tracking werkt zolang de app op de voorgrond actief is. Meldingen worden nog niet naar een server gestuurd. De eerste gesproken afslagbegeleiding en automatische herberekening zijn toegevoegd. Achtergrondnavigatie met scherm uit en uitgebreide praktijktests volgen nog.
+De Android GPS-voorgrondservice is toegevoegd voor actieve navigatieritten. Deze functie moet nog op echte telefoons en verschillende Android-versies worden getest, inclusief batterijbesparing en het intrekken van locatietoestemming. Meldingen worden nog niet naar een server gestuurd. De eerste gesproken afslagbegeleiding en automatische herberekening zijn toegevoegd. De Android-voorgrondservice voor GPS op de achtergrond is toegevoegd; uitgebreide praktijktests volgen nog.
 
 ## Privacy in deze prototypeversie
 
