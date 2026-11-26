@@ -53,6 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Position? _lastRidePosition;
   double _recordedRideMeters = 0;
   double _lastPersistedRideMeters = 0;
+  double _rideMaxSpeedKmh = 0;
 
   static const String _routeProfileKey = 'fietsradar.route_profile.v1';
   String _routeProfile = 'trekking';
@@ -107,6 +108,23 @@ class _HomeScreenState extends State<HomeScreen> {
   LatLng get _currentLocation => _position == null
       ? _netherlandsCenter
       : LatLng(_position!.latitude, _position!.longitude);
+
+  Duration get _activeRideDuration {
+    final startedAt = _rideStartedAt;
+    if (startedAt == null) return Duration.zero;
+    final pausedNow = _ridePausedAt == null
+        ? Duration.zero
+        : DateTime.now().difference(_ridePausedAt!);
+    final elapsed = DateTime.now().difference(startedAt) -
+        _ridePausedDuration -
+        pausedNow;
+    return elapsed.isNegative ? Duration.zero : elapsed;
+  }
+
+  double get _averageRideSpeedKmh {
+    final hours = _activeRideDuration.inSeconds / 3600;
+    return hours <= 0 ? 0 : (_recordedRideMeters / 1000) / hours;
+  }
 
   double get _speedKmh {
     final speed = (_position?.speed ?? 0) * 3.6;
@@ -590,6 +608,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
+    final measuredSpeed = position.speed * 3.6;
+    if (measuredSpeed.isFinite && measuredSpeed >= 0) {
+      _rideMaxSpeedKmh = math.max(_rideMaxSpeedKmh, measuredSpeed).toDouble();
+    }
     final previous = _lastRidePosition;
     _lastRidePosition = position;
     if (previous == null || previous.accuracy > 35) return;
@@ -630,6 +652,7 @@ class _HomeScreenState extends State<HomeScreen> {
         pausedAt: _ridePausedAt,
         isPaused: _ridePaused,
         distanceMeters: _recordedRideMeters,
+        maxSpeedKmh: _rideMaxSpeedKmh,
         routeProfile: _routeProfile,
         savedAt: DateTime.now(),
       ));
@@ -685,6 +708,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _ridePausedAt = restoredSession.pausedAt;
         _ridePaused = restoredSession.isPaused;
         _recordedRideMeters = restoredSession.distanceMeters;
+        _rideMaxSpeedKmh = restoredSession.maxSpeedKmh;
         _lastPersistedRideMeters = restoredSession.distanceMeters;
         _lastRidePosition = restoredSession.isPaused ? null : position;
         _navigating = true;
@@ -702,7 +726,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ? 'Je gepauzeerde fietstocht is hersteld.'
           : 'Je fietstocht is hersteld en de navigatie is hervat.');
       if (!restoredSession.isPaused) {
-        await _speechService.announce('Je eerdere fietsnavigatie is hersteld.');
+        await _announce('Je eerdere fietsnavigatie is hersteld.');
       }
     } catch (_) {
       // Keep the snapshot so the user can retry when routing is available.
@@ -740,6 +764,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _lastRidePosition = null;
     _recordedRideMeters = 0;
     _lastPersistedRideMeters = 0;
+    _rideMaxSpeedKmh = 0;
 
     // Ignore accidental starts and GPS sessions without enough valid movement.
     if (duration.inSeconds < 20 || distanceMeters < 25) return;
@@ -750,6 +775,7 @@ class _HomeScreenState extends State<HomeScreen> {
       durationSeconds: duration.inSeconds,
       distanceMeters: distanceMeters,
       destination: _destination?.name ?? 'Fietstocht',
+      maxSpeedKmh: _rideMaxSpeedKmh,
     );
 
     try {
@@ -862,6 +888,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _lastRidePosition = _position;
     _recordedRideMeters = 0;
     _lastPersistedRideMeters = 0;
+    _rideMaxSpeedKmh = 0;
     setState(() {
       _navigating = true;
       _offRoute = false;
@@ -3123,6 +3150,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             ? 'Geen GPS'
                             : '${_speedKmh.toStringAsFixed(0)} km/u',
                       ),
+                      const SizedBox(height: 12),
+                      if (_navigating)
+                        _detailRow(
+                          Icons.speed_rounded,
+                          'Gemiddelde snelheid',
+                          '${_averageRideSpeedKmh.toStringAsFixed(1).replaceAll('.', ',')} km/u',
+                        ),
+                      if (_navigating) const SizedBox(height: 12),
+                      if (_navigating)
+                        _detailRow(
+                          Icons.trending_up_rounded,
+                          'Topsnelheid',
+                          '${_rideMaxSpeedKmh.toStringAsFixed(1).replaceAll('.', ',')} km/u',
+                        ),
                       const SizedBox(height: 12),
                       _detailRow(
                         Icons.my_location_rounded,
