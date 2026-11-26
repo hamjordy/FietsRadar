@@ -37,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final ReportStorageService _reportStorageService = ReportStorageService();
   final SharedReportService _sharedReportService = SharedReportService();
   final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+  final ValueNotifier<int> _navigationUiTick = ValueNotifier<int>(0);
 
   static const String _favoritePlacesKey = 'fietsradar.favorite_places.v1';
   static const String _recentPlacesKey = 'fietsradar.recent_places.v1';
@@ -116,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _sharedReportsSubscription?.cancel();
     _reportExpiryTimer?.cancel();
     _searchController.dispose();
+    _navigationUiTick.dispose();
     unawaited(_speechService.dispose());
     super.dispose();
   }
@@ -197,6 +199,8 @@ class _HomeScreenState extends State<HomeScreen> {
       // Keep the rider centered on the map while turn-by-turn navigation runs.
       _mapController.move(_currentLocation, 16);
       _checkRouteProgress();
+      // Keep an already-open route instruction sheet synchronized with GPS.
+      _navigationUiTick.value++;
     }
   }
 
@@ -2176,7 +2180,9 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => SafeArea(
+      builder: (sheetContext) => ValueListenableBuilder<int>(
+        valueListenable: _navigationUiTick,
+        builder: (context, navigationTick, child) => SafeArea(
         child: Container(
           height: MediaQuery.of(sheetContext).size.height * 0.72,
           decoration: const BoxDecoration(
@@ -2330,6 +2336,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
