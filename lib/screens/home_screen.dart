@@ -776,6 +776,7 @@ class _HomeScreenState extends State<HomeScreen> {
         (_ridePausedAt == null ? Duration.zero : now.difference(_ridePausedAt!));
     final duration = now.difference(startedAt) - pausedDuration;
     final distanceMeters = _recordedRideMeters;
+    final maxSpeedKmh = _rideMaxSpeedKmh;
     _ridePausedAt = null;
     _ridePausedDuration = Duration.zero;
     _ridePaused = false;
@@ -793,7 +794,7 @@ class _HomeScreenState extends State<HomeScreen> {
       durationSeconds: duration.inSeconds,
       distanceMeters: distanceMeters,
       destination: _destination?.name ?? 'Fietstocht',
-      maxSpeedKmh: _rideMaxSpeedKmh,
+      maxSpeedKmh: maxSpeedKmh,
     );
 
     try {
