@@ -121,7 +121,7 @@ class RouteInstruction {
           pointIndex: pointIndex,
           command: command,
           exitNumber: values[2].toInt().abs(),
-          distanceToNextMeters: values[3].toDouble().clamp(0, double.infinity),
+          distanceToNextMeters: values[3].toDouble().clamp(0, double.infinity).toDouble(),
           angleDegrees: values[4].toInt(),
         ),
       );
