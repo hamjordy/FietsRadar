@@ -32,7 +32,7 @@ FietsRadar is een gratis Flutter-app voor Android met fietsgerichte navigatie en
 2. **Betere wegmeldingen**
    - Meldingen bevestigen of als opgelost markeren
    - Meldingen betwisten en moderatie-/misbruikafhandeling
-   - Duidelijke leeftijd, betrouwbaarheid en status van meldingen op kaart en lijst
+   - [x] Leeftijd en geldigheidsstatus van meldingen in de meldingenlijst tonen; lokale meldingen duidelijk onderscheiden van server-bevestigde gedeelde meldingen\n   - Betrouwbaarheid en bevestigingsstatus van meldingen op kaart en lijst
    - End-to-end testen met meerdere echte toestellen en een geconfigureerd Supabase-project
 
 3. **Verkeers- en fietsveiligheidsinformatie**
