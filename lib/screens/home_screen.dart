@@ -2036,11 +2036,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ? route.estimatedDuration.inSeconds *
             (remaining / route.distanceMeters)
         : route.estimatedDuration.inSeconds;
-    final minutes = _navigating
-        ? (_arrivalAnnounced
-            ? 0
-            : math.max(1, (estimatedRemainingSeconds / 60).ceil()))
-        : route.estimatedDuration.inMinutes;
+    final minutes = _arrivalAnnounced
+        ? 0
+        : _navigating
+            ? math.max(1, (estimatedRemainingSeconds / 60).ceil())
+            : route.estimatedDuration.inMinutes;
     final instruction = _nextInstruction;
     final metersToTurn = _metersToNextInstruction;
     final progress = (_navigating || _arrivalAnnounced) && route.distanceMeters > 0
