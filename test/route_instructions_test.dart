@@ -41,7 +41,7 @@ void main() {
     });
 
     test('uses a safe fallback label for unknown commands', () {
-      final instruction = RouteInstruction(
+      const instruction = RouteInstruction(
         pointIndex: 1,
         command: 12,
         exitNumber: 0,
