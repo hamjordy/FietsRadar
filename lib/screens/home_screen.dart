@@ -680,10 +680,18 @@ class _HomeScreenState extends State<HomeScreen> {
       nearestIndex,
       route.points.length - 1,
     );
-    if (remaining <= 25 && !_arrivalAnnounced) {
+    final destinationDistance = distance.as(
+      LengthUnit.Meter,
+      current,
+      route.points.last,
+    );
+    if (remaining <= 20 &&
+        destinationDistance <= 30 &&
+        !_arrivalAnnounced) {
       _arrivalAnnounced = true;
+      setState(() {});
       unawaited(
-        _speechService.announce('Je hebt je bestemming bijna bereikt.'),
+        _speechService.announce('Je bent aangekomen op je bestemming.'),
       );
     }
   }
@@ -1461,10 +1469,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 58,
                     height: 58,
                     decoration: BoxDecoration(
-                      color: FietsRadarApp.forest,
+                      color: _arrivalAnnounced
+                          ? const Color(0xFF358B5C)
+                          : FietsRadarApp.forest,
                       borderRadius: BorderRadius.circular(17),
                     ),
-                    child: Icon(turnIcon, color: Colors.white, size: 34),
+                    child: Icon(
+                      _arrivalAnnounced ? Icons.flag_rounded : turnIcon,
+                      color: Colors.white,
+                      size: 34,
+                    ),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1472,7 +1486,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          instruction?.label ?? 'Volg de route naar je bestemming',
+                          _arrivalAnnounced
+                              ? 'Bestemming bereikt'
+                              : instruction?.label ?? 'Volg de route naar je bestemming',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -1483,9 +1499,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          instruction == null
-                              ? 'Volgende aanwijzing'
-                              : 'Over ${formatDistance(metersToTurn)}',
+                          _arrivalAnnounced
+                              ? 'Je bent aangekomen op je bestemming.'
+                              : instruction == null
+                                  ? 'Volgende aanwijzing'
+                                  : 'Over ${formatDistance(metersToTurn)}',
                           style: const TextStyle(
                             color: Colors.black54,
                             fontWeight: FontWeight.w700,
@@ -1495,7 +1513,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  if (_rerouting)
+                  if (_rerouting && !_arrivalAnnounced)
                     const SizedBox(
                       width: 22,
                       height: 22,
@@ -1529,7 +1547,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       Text(
                         _navigating
-                            ? (_offRoute ? 'Route controleren' : 'Je bent onderweg')
+                            ? (_arrivalAnnounced
+                                ? 'Aangekomen'
+                                : _offRoute
+                                    ? 'Route controleren'
+                                    : 'Je bent onderweg')
                             : 'Fietsroute gevonden',
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
