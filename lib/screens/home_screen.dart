@@ -259,19 +259,23 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 5),
                 const Text('Kies hoe FietsRadar jouw fietsroute berekent.', style: TextStyle(color: Colors.black54)),
                 const SizedBox(height: 14),
-                ..._routeProfiles.entries.map((entry) => RadioListTile<String>(
-                  value: entry.key,
+                RadioGroup<String>(
                   groupValue: _routeProfile,
-                  activeColor: FietsRadarApp.forest,
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(entry.value, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  subtitle: Text(entry.key == 'trekking' ? 'Een goede balans tussen comfort en afstand.' : entry.key == 'fastbike' ? 'Gericht op vlot en efficiënt doorfietsen.' : 'Geeft meer prioriteit aan rustigere fietsroutes.'),
                   onChanged: (value) {
                     if (value == null) return;
-                    setSheetState(() {});
                     Navigator.pop(sheetContext, value);
                   },
-                )),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: _routeProfiles.entries.map((entry) => RadioListTile<String>(
+                      value: entry.key,
+                      activeColor: FietsRadarApp.forest,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(entry.value, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      subtitle: Text(entry.key == 'trekking' ? 'Een goede balans tussen comfort en afstand.' : entry.key == 'fastbike' ? 'Gericht op vlot en efficiënt doorfietsen.' : 'Geeft meer prioriteit aan rustigere fietsroutes.'),
+                    )).toList(),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(sheetContext), child: const Text('Sluiten'))),
               ],
