@@ -49,7 +49,7 @@ De gedeelde meldingen gebruiken Supabase. De app blijft ook zonder Supabase voll
    - `SUPABASE_URL`: de Project URL
    - `SUPABASE_PUBLISHABLE_KEY`: de publishable key
 
-Gebruik nooit een Supabase secret key of service-role key in de app of GitHub Actions build. De database gebruikt Row Level Security; clients krijgen alleen actieve meldingen te lezen, kunnen eigen meldingen publiceren en kunnen alleen hun eigen recente meldingen verwijderen. Publicaties krijgen een server-side vervaltijd; een geplande database-taak verwijdert verlopen meldingen elke tien minuten. De server controleert ook een basislimiet per gebruiker.
+Gebruik nooit een Supabase secret key of service-role key in de app of GitHub Actions build. De database gebruikt Row Level Security; clients lezen alleen actieve meldingen, kunnen eigen meldingen publiceren en alleen hun eigen meldingen verwijderen. Publicaties krijgen een server-side vervaltijd; een geplande database-taak verwijdert verlopen meldingen elke tien minuten. De server controleert ook een basislimiet per gebruiker.
 
 Om lokaal met live meldingen te bouwen:
 
@@ -77,17 +77,17 @@ De code gebruikt op dit moment publieke diensten om zonder API-sleutel te kunnen
 
 Dit is nadrukkelijk nog geen volledige vervanger van Waze of Flitsmeister. De basis is gelegd; voor een betrouwbare publieke app moeten onder andere deze onderdelen nog worden gebouwd en getest:
 
-1. Achtergrondnavigatie met een Android foreground service en blijvende navigatiemelding.
-3. De Supabase-backend configureren, meldingen op de kaart testen met meerdere apparaten en uitgebreidere moderatie / spamdetectie toevoegen.
-4. Actuele wegafsluitingen, fietspadstatus, gevaarlijke punten en drukte uit betrouwbare databronnen.
-5. Favoriete bestemmingen, recente routes, routevoorkeuren en privacy-instellingen.
-6. Productiegeschikte kaart- en routeringsinfrastructuur, licentiecontrole, caching en monitoring.
-7. Uitgebreide tests op echte Android-telefoons, batterijverbruik en GPS-nauwkeurigheid.
-8. Ondertekende release-build en voorbereiding voor publicatie in Google Play.
+1. Supabase-project configureren en gedeelde meldingen op meerdere echte telefoons end-to-end testen.
+2. Uitgebreidere moderatie, meldingen bevestigen / betwisten en sterkere bescherming tegen misbruik toevoegen.
+3. Actuele wegafsluitingen, fietspadstatus, gevaarlijke punten en drukte uit betrouwbare databronnen.
+4. Favoriete bestemmingen, recente routes, routevoorkeuren en privacy-instellingen.
+5. Productiegeschikte kaart- en routeringsinfrastructuur, licentiecontrole, caching en monitoring.
+6. Uitgebreide tests op echte Android-telefoons, batterijverbruik en GPS-nauwkeurigheid.
+7. Ondertekende release-build en voorbereiding voor publicatie in Google Play.
 
-De Android GPS-voorgrondservice is toegevoegd voor actieve navigatieritten. Deze functie moet nog op echte telefoons en verschillende Android-versies worden getest, inclusief batterijbesparing en het intrekken van locatietoestemming. Meldingen worden nog niet naar een server gestuurd. De eerste gesproken afslagbegeleiding en automatische herberekening zijn toegevoegd. De Android-voorgrondservice voor GPS op de achtergrond is toegevoegd; uitgebreide praktijktests volgen nog.
+De Android GPS-voorgrondservice is toegevoegd voor actieve navigatieritten. Deze functie moet nog op echte telefoons en verschillende Android-versies worden getest, inclusief batterijbesparing en het intrekken van locatietoestemming. De Supabase-client en database-migratie voor live meldingen staan in de repository, maar live delen wordt pas actief nadat een Supabase-project is aangemaakt, de SQL-migratie is uitgevoerd en de twee GitHub Actions secrets zijn ingesteld. De eerste gesproken afslagbegeleiding en automatische herberekening zijn toegevoegd.
 
 ## Privacy in deze prototypeversie
 
-FietsRadar vereist geen e-mailadres of wachtwoord voor live meldingen: na configuratie maakt Supabase een anoniem app-account aan. Wegmeldingen worden dan met hun gps-coördinaten, type en tijdstip naar de gedeelde meldingenbackend gestuurd en zijn zichtbaar voor andere gebruikers. Zonder backendconfiguratie blijven meldingen alleen lokaal. De GPS-positie wordt op het toestel gebruikt om de kaart bij te houden en wordt samen met de gekozen bestemming naar BRouter gestuurd wanneer een route wordt berekend. De ingevoerde bestemming wordt naar Nominatim gestuurd bij het zoeken. Kaartverzoeken gaan naar de ingestelde kaarttegelprovider.
+FietsRadar vereist geen e-mailadres of wachtwoord voor live meldingen: na configuratie maakt Supabase een anoniem app-account aan. Alleen wanneer een gebruiker zelf een wegmelding plaatst, worden het gekozen meldingstype en de actuele GPS-coördinaten naar de gedeelde backend gestuurd en zichtbaar voor andere FietsRadar-gebruikers. Deze meldingen verlopen na 2 tot 24 uur. De app deelt de doorlopende GPS-beweging niet met andere gebruikers. Zonder backendconfiguratie blijven meldingen alleen lokaal. De GPS-positie wordt op het toestel gebruikt om de kaart bij te houden en wordt samen met de gekozen bestemming naar BRouter gestuurd wanneer een route wordt berekend. De ingevoerde bestemming wordt naar Nominatim gestuurd bij het zoeken. Kaartverzoeken gaan naar de ingestelde kaarttegelprovider.
 
