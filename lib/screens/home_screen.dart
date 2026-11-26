@@ -12,6 +12,7 @@ import '../models/place.dart';
 import '../models/road_report.dart';
 import '../services/location_service.dart';
 import '../services/route_service.dart';
+import '../services/report_storage_service.dart';
 import '../services/speech_service.dart';
 import '../utils/formatters.dart';
 
@@ -30,6 +31,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final LocationService _locationService = LocationService();
   final RouteService _routeService = RouteService();
   final SpeechService _speechService = SpeechService();
+  final ReportStorageService _reportStorageService = ReportStorageService();
+
+  Future<void>? _reportsLoadFuture;
 
   StreamSubscription<Position>? _positionSubscription;
   Position? _position;
@@ -67,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    _reportsLoadFuture = _loadReports();
     _initializeLocation();
   }
 
@@ -506,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Kies het soort melding. De melding wordt in deze eerste versie lokaal opgeslagen.',
+                'Kies het soort melding. De melding blijft op dit toestel bewaard.',
                 style: TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 12),
@@ -531,11 +536,24 @@ class _HomeScreenState extends State<HomeScreen> {
     );
 
     if (selectedType != null) {
-      _addReport(selectedType);
+      await _addReport(selectedType);
     }
   }
 
-  void _addReport(ReportType type) {
+  Future<void> _loadReports() async {
+    try {
+      final savedReports = await _reportStorageService.loadReports();
+      if (!mounted) return;
+      setState(() => _reports = savedReports);
+    } catch (_) {
+      if (mounted) {
+        _showMessage('Opgeslagen meldingen konden niet worden geladen.');
+      }
+    }
+  }
+
+  Future<void> _addReport(ReportType type) async {
+    await _reportsLoadFuture;
     final position = _position;
     if (position == null) {
       _showMessage('Je GPS-locatie is nodig om een melding te plaatsen.');
@@ -548,15 +566,38 @@ class _HomeScreenState extends State<HomeScreen> {
       location: LatLng(position.latitude, position.longitude),
       createdAt: DateTime.now(),
     );
+    final updatedReports = <RoadReport>[report, ..._reports];
 
     setState(() {
-      _reports = [report, ..._reports];
+      _reports = updatedReports;
       _selectedTab = 1;
     });
 
-    _showMessage(
-      'Melding opgeslagen op dit toestel. Andere fietsers zien deze nog niet.',
-    );
+    try {
+      await _reportStorageService.saveReports(updatedReports);
+      _showMessage('Melding opgeslagen op dit toestel.');
+    } catch (_) {
+      _showMessage(
+        'Melding staat voorlopig alleen in deze sessie. Opslaan is mislukt.',
+      );
+    }
+  }
+
+  Future<void> _deleteReport(String reportId) async {
+    final previousReports = List<RoadReport>.of(_reports);
+    final updatedReports = _reports
+        .where((report) => report.id != reportId)
+        .toList();
+    setState(() => _reports = updatedReports);
+
+    try {
+      await _reportStorageService.saveReports(updatedReports);
+      _showMessage('Melding verwijderd.');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _reports = previousReports);
+      _showMessage('Verwijderen kon niet worden opgeslagen.');
+    }
   }
 
   void _showMessage(String message) {
@@ -1236,15 +1277,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             subtitle: Text(
                               'Geplaatst om ${formatClock(report.createdAt)} · GPS-locatie',
                             ),
-                            trailing: IconButton(
-                              tooltip: 'Toon op kaart',
-                              onPressed: () {
-                                setState(() => _selectedTab = 0);
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  _mapController.move(report.location, 17);
-                                });
-                              },
-                              icon: const Icon(Icons.map_outlined),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Toon op kaart',
+                                  onPressed: () {
+                                    setState(() => _selectedTab = 0);
+                                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                                      _mapController.move(report.location, 17);
+                                    });
+                                  },
+                                  icon: const Icon(Icons.map_outlined),
+                                ),
+                                IconButton(
+                                  tooltip: 'Melding verwijderen',
+                                  onPressed: () => _deleteReport(report.id),
+                                  icon: const Icon(Icons.delete_outline_rounded),
+                                ),
+                              ],
                             ),
                           ),
                         );

@@ -58,4 +58,52 @@ class RoadReport {
   final ReportType type;
   final LatLng location;
   final DateTime createdAt;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'type': type.name,
+        'latitude': location.latitude,
+        'longitude': location.longitude,
+        'createdAt': createdAt.toIso8601String(),
+      };
+
+  factory RoadReport.fromJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    final rawType = json['type'];
+    final rawLatitude = json['latitude'];
+    final rawLongitude = json['longitude'];
+    final rawCreatedAt = json['createdAt'];
+
+    ReportType? parsedType;
+    for (final candidate in ReportType.values) {
+      if (candidate.name == rawType) {
+        parsedType = candidate;
+        break;
+      }
+    }
+
+    if (rawId is! String || rawId.isEmpty ||
+        parsedType == null ||
+        rawLatitude is! num || !rawLatitude.isFinite ||
+        rawLongitude is! num || !rawLongitude.isFinite ||
+        rawCreatedAt is! String) {
+      throw const FormatException('Ongeldige wegmelding.');
+    }
+
+    final latitude = rawLatitude.toDouble();
+    final longitude = rawLongitude.toDouble();
+    final createdAt = DateTime.tryParse(rawCreatedAt);
+    if (latitude < -90 || latitude > 90 ||
+        longitude < -180 || longitude > 180 ||
+        createdAt == null) {
+      throw const FormatException('Ongeldige wegmelding.');
+    }
+
+    return RoadReport(
+      id: rawId,
+      type: parsedType,
+      location: LatLng(latitude, longitude),
+      createdAt: createdAt,
+    );
+  }
 }

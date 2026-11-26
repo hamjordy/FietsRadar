@@ -2,7 +2,7 @@
 
 **Gratis fiets-navigatie voor Android.** FietsRadar wordt gebouwd als een overzichtelijke fietsvariant van de bekende navigatie- en verkeersmeldingsapps: met GPS, fietsroutebegeleiding, snelheid en meldingen onderweg.
 
-> Deze repository bevat de eerste werkende projectbasis (0.1.0). De app is nog in ontwikkeling en is nog niet klaar voor publicatie in Google Play.
+> Deze repository bevat de eerste werkende projectbasis (0.3.0). De app is nog in ontwikkeling en is nog niet klaar voor publicatie in Google Play.
 
 ## Wat zit er in deze eerste versie?
 
@@ -13,7 +13,7 @@
 - **Fietsroute:** vraagt een fietsroute op via het BRouter-profiel `trekking` en tekent die op de kaart.
 - **Gesproken route-instructies:** BRouter levert afslagaanwijzingen zoals linksaf, rechtsaf en rotondes; FietsRadar kondigt de volgende manoeuvre in het Nederlands aan.
 - **Routebewaking:** negeert onnauwkeurige GPS-fixes, controleert of je op de route fietst en berekent automatisch een nieuwe route wanneer je twee opeenvolgende GPS-updates duidelijk van de route af zitten.
-- **Wegmeldingen:** meldingen voor gevaar, wegwerkzaamheden, obstakels, gladheid en ongevallen. In deze eerste versie worden ze alleen in het geheugen van de geopende app bijgehouden.
+- **Wegmeldingen:** meldingen voor gevaar, wegwerkzaamheden, obstakels, gladheid en ongevallen. Ze worden lokaal op het toestel opgeslagen en blijven na het afsluiten van de app bewaard. Ze worden nog niet met andere fietsers gedeeld.
 - **Android CI:** GitHub Actions voert code-analyse en tests uit en bouwt een debug-APK.
 
 ## Technologie
@@ -65,5 +65,5 @@ De Android GPS-voorgrondservice is toegevoegd voor actieve navigatieritten. Deze
 
 ## Privacy in deze prototypeversie
 
-FietsRadar heeft nog geen account of eigen backend. De GPS-positie wordt op het toestel gebruikt om de kaart bij te houden en wordt samen met de gekozen bestemming naar BRouter gestuurd wanneer een route wordt berekend. De ingevoerde bestemming wordt naar Nominatim gestuurd bij het zoeken. Kaartverzoeken gaan naar de ingestelde kaarttegelprovider. Meldingen blijven lokaal in het geheugen van de geopende app en worden niet gedeeld.
+FietsRadar heeft nog geen account of eigen backend. De GPS-positie wordt op het toestel gebruikt om de kaart bij te houden en wordt samen met de gekozen bestemming naar BRouter gestuurd wanneer een route wordt berekend. De ingevoerde bestemming wordt naar Nominatim gestuurd bij het zoeken. Kaartverzoeken gaan naar de ingestelde kaarttegelprovider. Wegmeldingen worden lokaal op het toestel bewaard en niet naar andere fietsers of een server verstuurd.
 
