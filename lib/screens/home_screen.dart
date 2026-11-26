@@ -469,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             MarkerLayer(markers: _buildMarkers()),
             const RichAttributionWidget(
-              attributions: const [
+              attributions: [
                 TextSourceAttribution('© OpenStreetMap contributors'),
               ],
             ),
@@ -667,9 +667,9 @@ class _HomeScreenState extends State<HomeScreen> {
             bottom: 20,
             child: Card(
               child: Padding(
-                padding: const EdgeInsets.all(18),
+                padding: EdgeInsets.all(18),
                 child: Row(
-                  children: const [
+                  children: [
                     SizedBox(
                       width: 22,
                       height: 22,
