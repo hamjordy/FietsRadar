@@ -45,7 +45,13 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedTab = 0;
   String? _locationError;
   String? _searchError;
-  int _lastAnnouncedProgressIndex = -1;
+  int _instructionCursor = 0;
+  int? _lastApproachInstructionIndex;
+  int? _lastSpokenInstructionIndex;
+  int _offRouteUpdates = 0;
+  bool _rerouting = false;
+  bool _arrivalAnnounced = false;
+  DateTime? _lastRerouteAttempt;
 
   LatLng get _currentLocation => _position == null
       ? _netherlandsCenter
@@ -176,6 +182,12 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _route = route;
         _routeLoading = false;
+        _offRoute = false;
+        _offRouteUpdates = 0;
+        _instructionCursor = 0;
+        _lastApproachInstructionIndex = null;
+        _lastSpokenInstructionIndex = null;
+        _arrivalAnnounced = false;
       });
       _mapController.fitCamera(
         CameraFit.bounds(
@@ -198,7 +210,11 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _navigating = true;
       _offRoute = false;
-      _lastAnnouncedProgressIndex = -1;
+      _offRouteUpdates = 0;
+      _instructionCursor = 0;
+      _lastApproachInstructionIndex = null;
+      _lastSpokenInstructionIndex = null;
+      _arrivalAnnounced = false;
     });
     await _speechService.announce(
       'FietsRadar navigatie gestart. '
@@ -215,40 +231,193 @@ class _HomeScreenState extends State<HomeScreen> {
     await _speechService.stop();
   }
 
-  void _checkRouteProgress() {
-    final route = _route;
-    final position = _position;
-    if (route == null || position == null || route.points.isEmpty) return;
-
-    final current = LatLng(position.latitude, position.longitude);
-    final distance = const Distance();
-    var nearestDistance = double.infinity;
+  int _nearestRouteIndex(BikeRoute route, LatLng current) {
+    const distance = Distance();
     var nearestIndex = 0;
+    var nearestDistance = double.infinity;
 
     for (var index = 0; index < route.points.length; index++) {
-      final meters = distance.as(LengthUnit.Meter, current, route.points[index]);
+      final meters = distance.as(
+        LengthUnit.Meter,
+        current,
+        route.points[index],
+      );
       if (meters < nearestDistance) {
         nearestDistance = meters;
         nearestIndex = index;
       }
     }
+    return nearestIndex;
+  }
 
-    if (nearestDistance > 100 && !_offRoute) {
-      setState(() => _offRoute = true);
-      unawaited(
-        _speechService.announce(
-          'Let op. Je lijkt van de geplande fietsroute af te wijken.',
-        ),
+  double _distanceAlongRoute(BikeRoute route, int fromIndex, int toIndex) {
+    if (route.points.length < 2 || toIndex <= fromIndex) return 0;
+    const distance = Distance();
+    final start = fromIndex.clamp(0, route.points.length - 1);
+    final end = toIndex.clamp(0, route.points.length - 1);
+    var meters = 0.0;
+
+    for (var index = start + 1; index <= end; index++) {
+      meters += distance.as(
+        LengthUnit.Meter,
+        route.points[index - 1],
+        route.points[index],
       );
-    } else if (nearestDistance <= 55 && _offRoute) {
+    }
+    return meters;
+  }
+
+  RouteInstruction? get _nextInstruction {
+    final route = _route;
+    if (route == null || route.instructions.isEmpty) return null;
+    final index = _navigating ? _instructionCursor : 0;
+    if (index >= route.instructions.length) return null;
+    return route.instructions[index];
+  }
+
+  double get _metersToNextInstruction {
+    final route = _route;
+    final position = _position;
+    final instruction = _nextInstruction;
+    if (route == null || position == null || instruction == null) return 0;
+
+    final nearestIndex = _nearestRouteIndex(
+      route,
+      LatLng(position.latitude, position.longitude),
+    );
+    return _distanceAlongRoute(route, nearestIndex, instruction.pointIndex);
+  }
+
+  void _checkRouteProgress() {
+    final route = _route;
+    final position = _position;
+    if (route == null || position == null || route.points.isEmpty) return;
+
+    // Ignore poor GPS fixes: they should not trigger a false reroute or a wrong turn.
+    if (position.accuracy > 55) return;
+
+    final current = LatLng(position.latitude, position.longitude);
+    const distance = Distance();
+    final nearestIndex = _nearestRouteIndex(route, current);
+    final nearestDistance = distance.as(
+      LengthUnit.Meter,
+      current,
+      route.points[nearestIndex],
+    );
+
+    if (nearestDistance > 90) {
+      _offRouteUpdates++;
+      if (_offRouteUpdates >= 2 && !_offRoute) {
+        setState(() => _offRoute = true);
+      }
+
+      final lastAttempt = _lastRerouteAttempt;
+      final retryAllowed = lastAttempt == null ||
+          DateTime.now().difference(lastAttempt) > const Duration(seconds: 20);
+      if (_offRouteUpdates >= 2 && !_rerouting && retryAllowed) {
+        unawaited(_recalculateRoute());
+      }
+      return;
+    }
+
+    _offRouteUpdates = 0;
+    if (_offRoute && !_rerouting) {
       setState(() => _offRoute = false);
     }
 
-    if (nearestIndex > _lastAnnouncedProgressIndex &&
-        nearestIndex == route.points.length - 1) {
-      _lastAnnouncedProgressIndex = nearestIndex;
+    while (_instructionCursor < route.instructions.length &&
+        nearestIndex > route.instructions[_instructionCursor].pointIndex + 5) {
+      _instructionCursor++;
+      _lastApproachInstructionIndex = null;
+      _lastSpokenInstructionIndex = null;
+    }
+
+    final instruction = _nextInstruction;
+    if (instruction != null) {
+      final metersToTurn = _distanceAlongRoute(
+        route,
+        nearestIndex,
+        instruction.pointIndex,
+      );
+      if (metersToTurn <= 30 &&
+          _lastSpokenInstructionIndex != _instructionCursor) {
+        _lastSpokenInstructionIndex = _instructionCursor;
+        _lastApproachInstructionIndex = _instructionCursor;
+        unawaited(_speechService.announce('Nu: ${instruction.spokenText}.'));
+      } else if (metersToTurn > 30 &&
+          metersToTurn <= 180 &&
+          _lastApproachInstructionIndex != _instructionCursor) {
+        _lastApproachInstructionIndex = _instructionCursor;
+        final roundedMeters = (metersToTurn / 10).round() * 10;
+        unawaited(
+          _speechService.announce(
+            'Over ongeveer $roundedMeters meter, ${instruction.spokenText}.',
+          ),
+        );
+      }
+    }
+
+    final remaining = _distanceAlongRoute(
+      route,
+      nearestIndex,
+      route.points.length - 1,
+    );
+    if (remaining <= 25 && !_arrivalAnnounced) {
+      _arrivalAnnounced = true;
       unawaited(
         _speechService.announce('Je hebt je bestemming bijna bereikt.'),
+      );
+    }
+  }
+
+  Future<void> _recalculateRoute() async {
+    final destination = _destination;
+    final position = _position;
+    if (!_navigating || destination == null || position == null || _rerouting) {
+      return;
+    }
+
+    _lastRerouteAttempt = DateTime.now();
+    setState(() => _rerouting = true);
+    await _speechService.announce(
+      'Je bent van de route afgeweken. Ik bereken een nieuwe fietsroute.',
+    );
+
+    try {
+      final route = await _routeService.getBikeRoute(
+        start: LatLng(position.latitude, position.longitude),
+        destination: destination.location,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _route = route;
+        _rerouting = false;
+        _offRoute = false;
+        _offRouteUpdates = 0;
+        _instructionCursor = 0;
+        _lastApproachInstructionIndex = null;
+        _lastSpokenInstructionIndex = null;
+        _arrivalAnnounced = false;
+      });
+
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: LatLngBounds.fromPoints(route.points),
+          padding: const EdgeInsets.fromLTRB(44, 150, 44, 170),
+        ),
+      );
+      await _speechService.announce(
+        'De nieuwe fietsroute is klaar. ${formatDistance(route.distanceMeters)} naar ${destination.name}.',
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _rerouting = false);
+      _showMessage(
+        'Nieuwe route berekenen is niet gelukt. Controleer je internetverbinding.',
+      );
+      await _speechService.announce(
+        'Het opnieuw berekenen van de route is niet gelukt. Volg de kaart voorzichtig.',
       );
     }
   }
@@ -260,27 +429,11 @@ class _HomeScreenState extends State<HomeScreen> {
       return _route?.distanceMeters ?? 0;
     }
 
-    final current = LatLng(position.latitude, position.longitude);
-    const distance = Distance();
-    var nearestIndex = 0;
-    var nearestDistance = double.infinity;
-    for (var index = 0; index < route.points.length; index++) {
-      final meters = distance.as(LengthUnit.Meter, current, route.points[index]);
-      if (meters < nearestDistance) {
-        nearestDistance = meters;
-        nearestIndex = index;
-      }
-    }
-
-    var remaining = 0.0;
-    for (var index = nearestIndex + 1; index < route.points.length; index++) {
-      remaining += distance.as(
-        LengthUnit.Meter,
-        route.points[index - 1],
-        route.points[index],
-      );
-    }
-    return remaining;
+    final nearestIndex = _nearestRouteIndex(
+      route,
+      LatLng(position.latitude, position.longitude),
+    );
+    return _distanceAlongRoute(route, nearestIndex, route.points.length - 1);
   }
 
   Future<void> _showReportSheet() async {
@@ -742,7 +895,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _routePanel(BikeRoute route) {
     final remaining = _navigating ? _remainingMeters : route.distanceMeters;
-    final minutes = (remaining / 1000 / 15 * 60).ceil();
+    final minutes = _navigating
+        ? (remaining / 1000 / 15 * 60).ceil()
+        : route.estimatedDuration.inMinutes;
+    final instruction = _nextInstruction;
+    final metersToTurn = _metersToNextInstruction;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -811,6 +968,75 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+            if (_rerouting)
+              const Padding(
+                padding: EdgeInsets.only(top: 10),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 15,
+                      height: 15,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Nieuwe fietsroute berekenen…',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (_navigating && instruction != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+                  decoration: BoxDecoration(
+                    color: FietsRadarApp.lime.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        instruction.command == 1
+                            ? Icons.arrow_upward_rounded
+                            : instruction.command == 13 || instruction.command == 14
+                                ? Icons.alt_route_rounded
+                                : instruction.command == 5 ||
+                                        instruction.command == 6 ||
+                                        instruction.command == 7 ||
+                                        instruction.command == 9 ||
+                                        instruction.command == 18
+                                    ? Icons.turn_right_rounded
+                                    : Icons.turn_left_rounded,
+                        color: FietsRadarApp.forest,
+                        size: 25,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          instruction.label,
+                          style: const TextStyle(
+                            color: FietsRadarApp.forest,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        formatDistance(metersToTurn),
+                        style: const TextStyle(
+                          color: FietsRadarApp.forest,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
             if (_offRoute)
               const Padding(
                 padding: EdgeInsets.only(top: 10),
@@ -1081,6 +1307,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     setState(() {
                       _route = null;
                       _destination = null;
+                      _rerouting = false;
+                      _offRouteUpdates = 0;
+                      _instructionCursor = 0;
                       _searchController.clear();
                     });
                   },
