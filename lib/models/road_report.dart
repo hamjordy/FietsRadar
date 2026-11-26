@@ -55,6 +55,8 @@ class RoadReport {
     this.expiresAt,
     this.ownerId,
     this.isShared = false,
+    this.isResolved = false,
+    this.resolvedAt,
   });
 
   final String id;
@@ -64,6 +66,8 @@ class RoadReport {
   final DateTime? expiresAt;
   final String? ownerId;
   final bool isShared;
+  final bool isResolved;
+  final DateTime? resolvedAt;
 
   /// Describes whether the report has a server-confirmed expiry.
   /// Local reports are retained on this device and have no shared validity.
@@ -107,6 +111,8 @@ class RoadReport {
     final rawCreatedAt = json['created_at'];
     final rawExpiresAt = json['expires_at'];
     final rawOwnerId = json['user_id'];
+    final rawIsResolved = json['is_resolved'];
+    final rawResolvedAt = json['resolved_at'];
 
     ReportType? parsedType;
     for (final candidate in ReportType.values) {
@@ -121,7 +127,9 @@ class RoadReport {
         rawLatitude is! num || !rawLatitude.isFinite ||
         rawLongitude is! num || !rawLongitude.isFinite ||
         rawCreatedAt is! String || rawExpiresAt is! String ||
-        rawOwnerId is! String || rawOwnerId.isEmpty) {
+        rawOwnerId is! String || rawOwnerId.isEmpty ||
+        (rawIsResolved != null && rawIsResolved is! bool) ||
+        (rawResolvedAt != null && rawResolvedAt is! String)) {
       throw const FormatException('Ongeldige gedeelde wegmelding.');
     }
 
@@ -143,6 +151,8 @@ class RoadReport {
       expiresAt: expiresAt.toLocal(),
       ownerId: rawOwnerId,
       isShared: true,
+      isResolved: rawIsResolved == true,
+      resolvedAt: rawResolvedAt is String ? DateTime.tryParse(rawResolvedAt)?.toLocal() : null,
     );
   }
 
