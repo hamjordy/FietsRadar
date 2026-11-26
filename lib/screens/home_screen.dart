@@ -190,6 +190,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     if (_navigating && _route != null) {
+      // Keep the rider centered on the map while turn-by-turn navigation runs.
+      _mapController.move(_currentLocation, 16);
       _checkRouteProgress();
     }
   }
