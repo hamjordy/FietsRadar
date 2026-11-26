@@ -40,4 +40,4 @@ if missing:
     path.write_text(content, encoding="utf-8")
 PY
 
-echo "Android platform files and GPS permissions are ready."
+# flutter create generates a sample widget test for a demo MyApp. This app has its own focused tests.\nrm -f test/widget_test.dart\n\necho "Android platform files and GPS permissions are ready."
