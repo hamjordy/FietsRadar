@@ -10,8 +10,8 @@
 - **Snelheidsmeter:** toont de actuele GPS-snelheid in km/u zolang de app open is.
 - **Bestemming zoeken:** zoekt Nederlandse adressen en plaatsen.
 - **Fietsroute:** vraagt een fietsroute op via het BRouter-profiel `trekking` en tekent die op de kaart.
-- **Navigatiestart:** gesproken Nederlandse startbegeleiding via de spraakengine van Android.
-- **Routebewaking:** waarschuwt met spraak wanneer de GPS-positie ruim buiten de berekende route komt.
+- **Gesproken route-instructies:** BRouter levert afslagaanwijzingen zoals linksaf, rechtsaf en rotondes; FietsRadar kondigt de volgende manoeuvre in het Nederlands aan.
+- **Routebewaking:** negeert onnauwkeurige GPS-fixes, controleert of je op de route fietst en berekent automatisch een nieuwe route wanneer je twee opeenvolgende GPS-updates duidelijk van de route af zitten.
 - **Wegmeldingen:** meldingen voor gevaar, wegwerkzaamheden, obstakels, gladheid en ongevallen. In deze eerste versie worden ze alleen in het geheugen van de geopende app bijgehouden.
 - **Android CI:** GitHub Actions voert code-analyse en tests uit en bouwt een debug-APK.
 
@@ -52,8 +52,7 @@ De code gebruikt op dit moment publieke diensten om zonder API-sleutel te kunnen
 
 Dit is nadrukkelijk nog geen volledige vervanger van Waze of Flitsmeister. De basis is gelegd; voor een betrouwbare publieke app moeten onder andere deze onderdelen nog worden gebouwd en getest:
 
-1. Volledige afslag-voor-afslag route-instructies en automatische routeherberekening.
-2. Achtergrondnavigatie met een Android foreground service en blijvende navigatiemelding.
+1. Achtergrondnavigatie met een Android foreground service en blijvende navigatiemelding.
 3. Een online meldingenbackend zodat meldingen van andere fietsers binnenkomen, inclusief moderatie en automatische vervaltijd.
 4. Actuele wegafsluitingen, fietspadstatus, gevaarlijke punten en drukte uit betrouwbare databronnen.
 5. Favoriete bestemmingen, recente routes, routevoorkeuren en privacy-instellingen.
@@ -61,7 +60,7 @@ Dit is nadrukkelijk nog geen volledige vervanger van Waze of Flitsmeister. De ba
 7. Uitgebreide tests op echte Android-telefoons, batterijverbruik en GPS-nauwkeurigheid.
 8. Ondertekende release-build en voorbereiding voor publicatie in Google Play.
 
-De huidige GPS-tracking werkt zolang de app op de voorgrond actief is. Meldingen worden nog niet naar een server gestuurd. De gesproken begeleiding kondigt de navigatiestart en route-afwijking/bestemming aan; volledige gesproken afslagbegeleiding volgt in een volgende ontwikkelfase.
+De huidige GPS-tracking werkt zolang de app op de voorgrond actief is. Meldingen worden nog niet naar een server gestuurd. De eerste gesproken afslagbegeleiding en automatische herberekening zijn toegevoegd. Achtergrondnavigatie met scherm uit en uitgebreide praktijktests volgen nog.
 
 ## Privacy in deze prototypeversie
 
