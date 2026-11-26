@@ -16,6 +16,7 @@
 - **Favorieten en recente bestemmingen:** lokaal opgeslagen op het toestel.
 - **Ritregistratie:** tijdens actieve navigatie telt FietsRadar geldige GPS-afstanden op en filtert onnauwkeurige GPS-fixes en onwaarschijnlijke sprongen. Je kunt een rit pauzeren en hervatten; gepauzeerde tijd en GPS-afstand tellen niet mee.
 - **Ritgeschiedenis:** afgeronde ritten worden lokaal op het toestel opgeslagen met datum, bestemming, afstand en duur. De laatste 100 ritten blijven bewaard; er wordt geen GPS-route of locatiegeschiedenis opgeslagen.
+- **Aankomst automatisch afronden:** bij aankomst meldt FietsRadar dit gesproken en op het scherm, slaat de rit op en stopt de achtergrond-GPS-service. Je kunt daarna de voltooide route sluiten.
 - **Herstel actieve rit:** FietsRadar bewaart lokaal een beperkte sessiesamenvatting en probeert na een onverwachte app-afsluiting de bestemming, route, afgelegde afstand en pauzestatus te herstellen. GPS-punten worden niet opgeslagen; de route wordt opnieuw berekend vanaf de actuele locatie.
 - **Wegmeldingen:** gevaar, wegwerkzaamheden, obstakels, gladheid en ongevallen.
 - **Live meldingen (optioneel):** via Supabase Realtime; zonder backendconfiguratie blijven meldingen lokaal.
