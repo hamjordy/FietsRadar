@@ -630,11 +630,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _searchController.text = destination.name;
         _routeProfile = profile;
         _route = route;
-        _rideStartedAt = session!.startedAt;
-        _ridePausedDuration = Duration(milliseconds: session!.pausedDurationMs);
-        _ridePausedAt = session!.pausedAt;
-        _ridePaused = session!.isPaused;
-        _recordedRideMeters = session!.distanceMeters;
+        _rideStartedAt = session.startedAt;
+        _ridePausedDuration = Duration(milliseconds: session.pausedDurationMs);
+        _ridePausedAt = session.pausedAt;
+        _ridePaused = session.isPaused;
+        _recordedRideMeters = session.distanceMeters;
         _lastPersistedRideMeters = session!.distanceMeters;
         _lastRidePosition = session!.isPaused ? null : position;
         _navigating = true;
