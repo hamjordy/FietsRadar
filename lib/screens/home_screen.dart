@@ -75,6 +75,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Place> _suggestions = [];
   List<RoadReport> _reports = [];
   ReportType? _selectedReportFilter;
+  int _selectedReportStatusFilter = 0; // 0 = all, 1 = active, 2 = resolved
   ReportType? _selectedMapReportFilter;
   BikeRoute? _route;
   Place? _destination;
@@ -2352,9 +2353,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 5),
             Text(
-              _sharingActive
-                  ? '${_reports.length} actieve meldingen · live gedeeld'
-                  : '${_reports.length} meldingen op dit toestel',
+              '${_reports.where((report) => report.isActive).length} actief · '
+              '${_reports.where((report) => report.isResolved).length} opgelost'
+              '${_sharingActive ? ' · live gedeeld' : ' · op dit toestel'}',
               style: const TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 13),
@@ -2430,10 +2431,33 @@ class _HomeScreenState extends State<HomeScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
+                  for (final status in const [
+                    (label: 'Alle statussen', value: 0),
+                    (label: 'Actief', value: 1),
+                    (label: 'Opgelost', value: 2),
+                  ])
+                    Padding(
+                      padding: const EdgeInsets.only(right: 7),
+                      child: ChoiceChip(
+                        label: Text(status.label),
+                        selected: _selectedReportStatusFilter == status.value,
+                        onSelected: (_) => setState(
+                          () => _selectedReportStatusFilter = status.value,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 7),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
                   Padding(
                     padding: const EdgeInsets.only(right: 7),
                     child: ChoiceChip(
-                      label: const Text('Alles'),
+                      label: const Text('Alle categorieën'),
                       selected: _selectedReportFilter == null,
                       onSelected: (_) => setState(() => _selectedReportFilter = null),
                     ),
@@ -2464,16 +2488,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : Builder(
                       builder: (context) {
-                        final filteredReports = _selectedReportFilter == null
-                            ? _reports
-                            : _reports.where((report) => report.type == _selectedReportFilter).toList();
+                        final filteredReports = _reports.where((report) {
+                          final matchesType = _selectedReportFilter == null ||
+                              report.type == _selectedReportFilter;
+                          final matchesStatus = _selectedReportStatusFilter == 0 ||
+                              (_selectedReportStatusFilter == 1 && report.isActive) ||
+                              (_selectedReportStatusFilter == 2 && report.isResolved);
+                          return matchesType && matchesStatus;
+                        }).toList();
                         if (filteredReports.isEmpty) {
                           return _emptyState(
                             icon: Icons.filter_alt_off_rounded,
-                            title: 'Geen meldingen in deze categorie',
-                            message: 'Kies een andere categorie of tik op Alles om alle meldingen te bekijken.',
-                            buttonLabel: 'Toon alles',
-                            onPressed: () => setState(() => _selectedReportFilter = null),
+                            title: 'Geen meldingen gevonden',
+                            message: 'Pas de status- of categoriefilter aan om andere meldingen te bekijken.',
+                            buttonLabel: 'Wis filters',
+                            onPressed: () => setState(() {
+                              _selectedReportFilter = null;
+                              _selectedReportStatusFilter = 0;
+                            }),
                           );
                         }
                         return ListView.separated(
