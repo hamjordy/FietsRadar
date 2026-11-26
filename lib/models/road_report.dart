@@ -65,6 +65,29 @@ class RoadReport {
   final String? ownerId;
   final bool isShared;
 
+  /// Describes whether the report has a server-confirmed expiry.
+  /// Local reports are retained on this device and have no shared validity.
+  String validityLabelAt(DateTime now) {
+    final expiry = expiresAt;
+    if (!isShared || expiry == null) {
+      return 'Alleen lokaal opgeslagen · geldigheid niet bevestigd';
+    }
+    final remaining = expiry.difference(now);
+    if (remaining <= Duration.zero) return 'Verlopen';
+    if (remaining.inMinutes < 1) return 'Verloopt binnen een minuut';
+    if (remaining.inHours < 1) {
+      return 'Nog geldig · verloopt over ${remaining.inMinutes} min';
+    }
+    if (remaining.inDays < 1) {
+      final hours = remaining.inHours;
+      final minutes = remaining.inMinutes.remainder(60);
+      return minutes == 0
+          ? 'Nog geldig · verloopt over ${hours} uur'
+          : 'Nog geldig · verloopt over ${hours} u ${minutes} min';
+    }
+    return 'Nog geldig · verloopt over ${remaining.inDays} dagen';
+  }
+
   Map<String, dynamic> toJson() => {
         'id': id,
         'type': type.name,
