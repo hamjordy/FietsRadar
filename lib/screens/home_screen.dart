@@ -1023,13 +1023,35 @@ class _HomeScreenState extends State<HomeScreen> {
     if (remaining <= 20 &&
         destinationDistance <= 30 &&
         !_arrivalAnnounced) {
-      _arrivalAnnounced = true;
-      setState(() {});
-      unawaited(_saveCurrentRide());
-      unawaited(
-        _speechService.announce('Je bent aangekomen op je bestemming.'),
-      );
+      unawaited(_completeArrival());
     }
+  }
+
+  Future<void> _completeArrival() async {
+    if (!_navigating || _arrivalAnnounced) return;
+    setState(() => _arrivalAnnounced = true);
+    await _saveCurrentRide();
+    await _speechService.announce('Je bent aangekomen op je bestemming.');
+    if (!mounted) return;
+
+    // The destination is reached: stop the foreground navigation service so
+    // it does not keep GPS running in the background after the ride is saved.
+    setState(() {
+      _navigating = false;
+      _offRoute = false;
+      _backgroundTrackingActive = false;
+      _offRouteUpdates = 0;
+    });
+    await _startPositionTracking();
+  }
+
+  void _clearCompletedRoute() {
+    setState(() {
+      _arrivalAnnounced = false;
+      _route = null;
+      _destination = null;
+      _suggestions = [];
+    });
   }
 
   void _checkNearbyReportAlerts(LatLng current, Distance distance) {
@@ -2005,7 +2027,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _routePanel(BikeRoute route) {
-    final remaining = _navigating ? _remainingMeters : route.distanceMeters;
+    final remaining = _arrivalAnnounced
+        ? 0.0
+        : _navigating
+            ? _remainingMeters
+            : route.distanceMeters;
     final estimatedRemainingSeconds = route.distanceMeters > 0
         ? route.estimatedDuration.inSeconds *
             (remaining / route.distanceMeters)
@@ -2017,7 +2043,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : route.estimatedDuration.inMinutes;
     final instruction = _nextInstruction;
     final metersToTurn = _metersToNextInstruction;
-    final progress = _navigating && route.distanceMeters > 0
+    final progress = (_navigating || _arrivalAnnounced) && route.distanceMeters > 0
         ? (1 - remaining / route.distanceMeters).clamp(0.0, 1.0).toDouble()
         : 0.0;
     final turnIcon = instruction == null
@@ -2044,7 +2070,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_navigating) ...[
+            if (_navigating || _arrivalAnnounced) ...[
               Row(
                 children: [
                   Container(
@@ -2164,14 +2190,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     Text(
-                      _navigating ? 'nog $minutes min' : '$minutes min fietsen',
+                      _arrivalAnnounced
+                            ? 'bestemming bereikt'
+                            : _navigating
+                                ? 'nog $minutes min'
+                                : '$minutes min fietsen',
                       style: const TextStyle(color: Colors.black54, fontSize: 11),
                     ),
                   ],
                 ),
               ],
             ),
-            if (_navigating) ...[
+            if (_navigating || _arrivalAnnounced) ...[
               const SizedBox(height: 13),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2255,7 +2285,7 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               child: FilledButton.icon(
                 style: FilledButton.styleFrom(
-                  backgroundColor: _navigating
+                  backgroundColor: _navigating || _arrivalAnnounced
                       ? const Color(0xFFB42318)
                       : FietsRadarApp.forest,
                   padding: const EdgeInsets.symmetric(vertical: 13),
@@ -2263,12 +2293,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                onPressed: _navigating ? _stopNavigation : _startNavigation,
+                onPressed: _navigating
+                    ? _stopNavigation
+                    : _arrivalAnnounced
+                        ? _clearCompletedRoute
+                        : _startNavigation,
                 icon: Icon(
-                  _navigating ? Icons.stop_rounded : Icons.navigation_rounded,
+                  _navigating || _arrivalAnnounced
+                      ? Icons.check_circle_outline_rounded
+                      : Icons.navigation_rounded,
                 ),
                 label: Text(
-                  _navigating ? 'Navigatie stoppen' : 'Start navigatie',
+                  _arrivalAnnounced
+                      ? 'Rit afronden'
+                      : _navigating
+                          ? 'Navigatie stoppen'
+                          : 'Start navigatie',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
               ),
