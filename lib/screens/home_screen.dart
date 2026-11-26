@@ -16,6 +16,7 @@ import '../services/location_service.dart';
 import '../services/route_service.dart';
 import '../services/report_storage_service.dart';
 import '../services/shared_report_service.dart';
+import '../services/ride_history_service.dart';
 import '../services/speech_service.dart';
 import '../utils/formatters.dart';
 
@@ -36,6 +37,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final SpeechService _speechService = SpeechService();
   final ReportStorageService _reportStorageService = ReportStorageService();
   final SharedReportService _sharedReportService = SharedReportService();
+  final RideHistoryService _rideHistoryService = RideHistoryService();
   final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
   final ValueNotifier<int> _navigationUiTick = ValueNotifier<int>(0);
 
@@ -43,6 +45,10 @@ class _HomeScreenState extends State<HomeScreen> {
   static const String _recentPlacesKey = 'fietsradar.recent_places.v1';
   List<Place> _favoritePlaces = [];
   List<Place> _recentPlaces = [];
+  List<RideRecord> _rideHistory = [];
+  DateTime? _rideStartedAt;
+  Position? _lastRidePosition;
+  double _recordedRideMeters = 0;
 
   static const String _routeProfileKey = 'fietsradar.route_profile.v1';
   String _routeProfile = 'trekking';
@@ -102,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _reportsLoadFuture = _loadReports();
     unawaited(_loadSavedPlaces());
+    unawaited(_loadRideHistory());
     unawaited(_loadRouteProfile());
     unawaited(_connectSharedReports());
     _reportExpiryTimer = Timer.periodic(
@@ -190,6 +197,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onPositionChanged(Position position) {
     if (!mounted) return;
+    _recordRidePosition(position);
     setState(() {
       _position = position;
       _locationError = null;
@@ -522,9 +530,170 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _recordRidePosition(Position position) {
+    if (!_navigating || _rideStartedAt == null || position.accuracy > 35) {
+      return;
+    }
+
+    final previous = _lastRidePosition;
+    _lastRidePosition = position;
+    if (previous == null || previous.accuracy > 35) return;
+
+    final elapsedSeconds =
+        position.timestamp.difference(previous.timestamp).inMilliseconds / 1000;
+    if (elapsedSeconds <= 0 || elapsedSeconds > 20) return;
+
+    const distance = Distance();
+    final meters = distance.as(
+      LengthUnit.Meter,
+      LatLng(previous.latitude, previous.longitude),
+      LatLng(position.latitude, position.longitude),
+    );
+    // Reject stationary GPS drift and implausible jumps between fixes.
+    if (!meters.isFinite || meters < 2.5 || meters > 100) return;
+    if (meters / elapsedSeconds > 15) return;
+
+    _recordedRideMeters += meters;
+  }
+
+  Future<void> _loadRideHistory() async {
+    try {
+      final rides = await _rideHistoryService.loadRides();
+      if (!mounted) return;
+      setState(() => _rideHistory = rides);
+    } catch (_) {
+      // Navigation must remain available if local history cannot be read.
+    }
+  }
+
+  Future<void> _saveCurrentRide() async {
+    final startedAt = _rideStartedAt;
+    if (startedAt == null) return;
+
+    // Clear first so arrival + manual stop cannot save the same ride twice.
+    _rideStartedAt = null;
+    final duration = DateTime.now().difference(startedAt);
+    final distanceMeters = _recordedRideMeters;
+    _lastRidePosition = null;
+    _recordedRideMeters = 0;
+
+    // Ignore accidental starts and GPS sessions without enough valid movement.
+    if (duration.inSeconds < 20 || distanceMeters < 25) return;
+
+    final ride = RideRecord(
+      id: startedAt.microsecondsSinceEpoch.toString(),
+      startedAt: startedAt,
+      durationSeconds: duration.inSeconds,
+      distanceMeters: distanceMeters,
+      destination: _destination?.name ?? 'Fietstocht',
+    );
+
+    try {
+      await _rideHistoryService.saveRide(ride);
+      if (!mounted) return;
+      await _loadRideHistory();
+      if (mounted) _showMessage('Rit opgeslagen in je ritgeschiedenis.');
+    } catch (_) {
+      if (mounted) {
+        _showMessage('Rit voltooid, maar opslaan in de ritgeschiedenis is mislukt.');
+      }
+    }
+  }
+
+  Future<void> _showRideHistory() async {
+    await _loadRideHistory();
+    if (!mounted) return;
+
+    final totalMeters = _rideHistory.fold<double>(
+      0,
+      (total, ride) => total + ride.distanceMeters,
+    );
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          height: MediaQuery.of(sheetContext).size.height * 0.72,
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Ritgeschiedenis',
+                style: TextStyle(
+                  color: FietsRadarApp.forest,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                '${_rideHistory.length} ritten · ${formatDistance(totalMeters)} totaal',
+                style: const TextStyle(color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: _rideHistory.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Je opgeslagen fietstochten verschijnen hier nadat je een navigatierit hebt voltooid.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.black54, height: 1.4),
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _rideHistory.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final ride = _rideHistory[index];
+                          final date = ride.startedAt.toLocal();
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const CircleAvatar(
+                              backgroundColor: Color(0xFFEAF2E6),
+                              child: Icon(
+                                Icons.directions_bike_rounded,
+                                color: FietsRadarApp.forest,
+                              ),
+                            ),
+                            title: Text(
+                              ride.destination,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            subtitle: Text(
+                              '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year} · ${formatClock(date)} · ${formatDuration(Duration(seconds: ride.durationSeconds))}',
+                            ),
+                            trailing: Text(
+                              formatDistance(ride.distanceMeters),
+                              style: const TextStyle(
+                                color: FietsRadarApp.forest,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _startNavigation() async {
     if (_route == null || _destination == null) return;
     _announcedNearbyReportIds.clear();
+    _rideStartedAt = DateTime.now();
+    _lastRidePosition = _position;
+    _recordedRideMeters = 0;
     setState(() {
       _navigating = true;
       _offRoute = false;
@@ -548,6 +717,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _stopNavigation() async {
+    await _saveCurrentRide();
+    if (!mounted) return;
     setState(() {
       _navigating = false;
       _offRoute = false;
@@ -707,6 +878,7 @@ class _HomeScreenState extends State<HomeScreen> {
         !_arrivalAnnounced) {
       _arrivalAnnounced = true;
       setState(() {});
+      unawaited(_saveCurrentRide());
       unawaited(
         _speechService.announce('Je bent aangekomen op je bestemming.'),
       );
@@ -2378,7 +2550,33 @@ class _HomeScreenState extends State<HomeScreen> {
               'Je huidige fietsroute en ritgegevens',
               style: TextStyle(color: Colors.black54),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 10),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.history_rounded, color: FietsRadarApp.forest),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${_rideHistory.length} opgeslagen ritten', style: const TextStyle(fontWeight: FontWeight.w800)),
+                          Text(
+                            'Totaal ${formatDistance(_rideHistory.fold<double>(0, (total, ride) => total + ride.distanceMeters))}',
+                            style: const TextStyle(color: Colors.black54, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    TextButton(onPressed: _showRideHistory, child: const Text('Bekijken')),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
             if (route == null)
               Expanded(
                 child: _emptyState(
@@ -2439,6 +2637,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         formatDuration(remainingDuration),
                       ),
                       const SizedBox(height: 12),
+                      if (_navigating)
+                        _detailRow(
+                          Icons.route_rounded,
+                          'Afgelegde afstand',
+                          formatDistance(_recordedRideMeters),
+                        ),
+                      if (_navigating) const SizedBox(height: 12),
                       _detailRow(
                         Icons.speed_rounded,
                         'Huidige snelheid',
