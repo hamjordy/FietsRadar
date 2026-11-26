@@ -253,8 +253,8 @@ class _HomeScreenState extends State<HomeScreen> {
   double _distanceAlongRoute(BikeRoute route, int fromIndex, int toIndex) {
     if (route.points.length < 2 || toIndex <= fromIndex) return 0;
     const distance = Distance();
-    final start = fromIndex.clamp(0, route.points.length - 1);
-    final end = toIndex.clamp(0, route.points.length - 1);
+    final start = fromIndex.clamp(0, route.points.length - 1).toInt();
+    final end = toIndex.clamp(0, route.points.length - 1).toInt();
     var meters = 0.0;
 
     for (var index = start + 1; index <= end; index++) {
@@ -410,7 +410,7 @@ class _HomeScreenState extends State<HomeScreen> {
       await _speechService.announce(
         'De nieuwe fietsroute is klaar. ${formatDistance(route.distanceMeters)} naar ${destination.name}.',
       );
-    } catch (error) {
+    } catch (_) {
       if (!mounted) return;
       setState(() => _rerouting = false);
       _showMessage(
