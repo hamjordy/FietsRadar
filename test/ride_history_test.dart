@@ -69,6 +69,7 @@ void main() {
         durationSeconds: 1845,
         distanceMeters: 6320.5,
         destination: 'Apeldoorn',
+        maxSpeedKmh: 31.4,
       );
 
       final restored = RideRecord.fromJson(ride.toJson());
@@ -78,6 +79,7 @@ void main() {
       expect(restored.durationSeconds, 1845);
       expect(restored.distanceMeters, 6320.5);
       expect(restored.destination, 'Apeldoorn');
+      expect(restored.maxSpeedKmh, 31.4);
     });
 
     test('rejects invalid duration and distance values', () {
@@ -101,6 +103,17 @@ void main() {
         }),
         throwsFormatException,
       );
+    });
+
+    test('accepts legacy records without a stored top speed', () {
+      final legacy = RideRecord.fromJson({
+        'id': 'ride-legacy',
+        'startedAt': '2026-11-26T18:30:00Z',
+        'durationSeconds': 60,
+        'distanceMeters': 250,
+        'destination': 'Apeldoorn',
+      });
+      expect(legacy.maxSpeedKmh, 0);
     });
 
     test('rejects missing required fields', () {
