@@ -133,7 +133,7 @@ class RouteService {
       );
     }).toList();
 
-    final distance = Distance();
+    const distance = Distance();
     var totalMeters = 0.0;
     for (var index = 1; index < points.length; index++) {
       totalMeters += distance.as(
