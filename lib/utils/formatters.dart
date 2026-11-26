@@ -8,7 +8,7 @@ String formatDistance(double meters) {
 String formatDuration(Duration duration) {
   if (duration.inHours > 0) {
     final minutes = duration.inMinutes.remainder(60);
-    return '${duration.inHours} u ${minutes} min';
+    return '${duration.inHours} u $minutes min';
   }
   return '${duration.inMinutes} min';
 }
