@@ -14,7 +14,7 @@
 - **Routebewaking:** voortgang, volgende manoeuvre en resterende route-informatie; onnauwkeurige GPS-fixes worden genegeerd en na herhaald afwijken wordt automatisch een nieuwe route berekend.
 - **Achtergrondnavigatie:** tijdens een bewust gestarte navigatierit gebruikt Android een locatie-foregroundservice met blijvende melding.
 - **Favorieten en recente bestemmingen:** lokaal opgeslagen op het toestel.
-- **Ritregistratie:** tijdens actieve navigatie telt FietsRadar geldige GPS-afstanden op en filtert onnauwkeurige GPS-fixes en onwaarschijnlijke sprongen.
+- **Ritregistratie:** tijdens actieve navigatie telt FietsRadar geldige GPS-afstanden op en filtert onnauwkeurige GPS-fixes en onwaarschijnlijke sprongen. Je kunt een rit pauzeren en hervatten; gepauzeerde tijd en GPS-afstand tellen niet mee.
 - **Ritgeschiedenis:** afgeronde ritten worden lokaal op het toestel opgeslagen met datum, bestemming, afstand en duur. De laatste 100 ritten blijven bewaard; er wordt geen GPS-route of locatiegeschiedenis opgeslagen.
 - **Wegmeldingen:** gevaar, wegwerkzaamheden, obstakels, gladheid en ongevallen.
 - **Live meldingen (optioneel):** via Supabase Realtime; zonder backendconfiguratie blijven meldingen lokaal.
@@ -82,7 +82,7 @@ De app gebruikt publieke diensten om zonder API-sleutel te kunnen starten. Dit b
 
 ## Wat volgt hierna?
 
-De actuele ontwikkelvolgorde staat in [docs/ROADMAP.md](docs/ROADMAP.md). De belangrijkste volgende onderdelen zijn pauzeren/hervatten en sessieherstel, bevestigen/betwisten van wegmeldingen, betrouwbare verkeersdata, praktijktests en voorbereiding van een ondertekende release.
+De actuele ontwikkelvolgorde staat in [docs/ROADMAP.md](docs/ROADMAP.md). De belangrijkste volgende onderdelen zijn sessieherstel, bevestigen/betwisten van wegmeldingen, betrouwbare verkeersdata, praktijktests en voorbereiding van een ondertekende release.
 
 ## Privacy in deze versie
 
