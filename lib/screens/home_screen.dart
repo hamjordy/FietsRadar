@@ -2486,8 +2486,28 @@ class _HomeScreenState extends State<HomeScreen> {
                               style:
                                   const TextStyle(fontWeight: FontWeight.w800),
                             ),
-                            subtitle: Text(
-                              '${report.isShared ? 'Gedeeld' : 'Alleen op dit toestel'} · ${formatRelativeTime(report.createdAt)}',
+                            subtitle: Padding(
+                              padding: const EdgeInsets.only(top: 3),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '${report.isShared ? 'Gedeeld' : 'Alleen op dit toestel'} · ${formatRelativeTime(report.createdAt)}',
+                                  ),
+                                  const SizedBox(height: 3),
+                                  Text(
+                                    report.validityLabelAt(DateTime.now()),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: report.isShared &&
+                                              (report.expiresAt?.isAfter(DateTime.now()) ?? false)
+                                          ? FietsRadarApp.forest
+                                          : Colors.black54,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
