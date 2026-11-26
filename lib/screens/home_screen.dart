@@ -2173,6 +2173,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRideView() {
     final route = _route;
+    final remainingDistance = route == null
+        ? 0.0
+        : (_navigating ? _remainingMeters : route.distanceMeters);
+    final estimatedRemainingSeconds = route == null || route.distanceMeters <= 0
+        ? 0.0
+        : route.estimatedDuration.inSeconds *
+            (remainingDistance / route.distanceMeters);
+    final remainingDuration = route == null
+        ? Duration.zero
+        : _navigating
+            ? Duration(
+                seconds: _arrivalAnnounced
+                    ? 0
+                    : math.max(1, (estimatedRemainingSeconds / 60).ceil()) * 60,
+              )
+            : route.estimatedDuration;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
@@ -2234,7 +2250,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       const SizedBox(height: 15),
                       Text(
                         formatDistance(
-                          _navigating ? _remainingMeters : route.distanceMeters,
+                          remainingDistance,
                         ),
                         style: const TextStyle(
                           color: FietsRadarApp.forest,
@@ -2250,7 +2266,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       _detailRow(
                         Icons.schedule_rounded,
                         'Geschatte reistijd',
-                        formatDuration(route.estimatedDuration),
+                        formatDuration(remainingDuration),
                       ),
                       const SizedBox(height: 12),
                       _detailRow(
