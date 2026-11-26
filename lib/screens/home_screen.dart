@@ -76,6 +76,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<RoadReport> _reports = [];
   ReportType? _selectedReportFilter;
   int _selectedReportStatusFilter = 0; // 0 = all, 1 = active, 2 = resolved
+  int _selectedReportSort = 0; // 0 = newest first, 1 = oldest first
   ReportType? _selectedMapReportFilter;
   BikeRoute? _route;
   Place? _destination;
@@ -2450,6 +2451,31 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 7),
+            Row(
+              children: [
+                const Text(
+                  'Sorteren:',
+                  style: TextStyle(
+                    color: Colors.black54,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ChoiceChip(
+                  label: const Text('Nieuwste'),
+                  selected: _selectedReportSort == 0,
+                  onSelected: (_) => setState(() => _selectedReportSort = 0),
+                ),
+                const SizedBox(width: 7),
+                ChoiceChip(
+                  label: const Text('Oudste'),
+                  selected: _selectedReportSort == 1,
+                  onSelected: (_) => setState(() => _selectedReportSort = 1),
+                ),
+              ],
+            ),
+            const SizedBox(height: 7),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -2495,7 +2521,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               (_selectedReportStatusFilter == 1 && report.isActive) ||
                               (_selectedReportStatusFilter == 2 && report.isResolved);
                           return matchesType && matchesStatus;
-                        }).toList();
+                        }).toList()
+                          ..sort((a, b) => _selectedReportSort == 0
+                              ? b.createdAt.compareTo(a.createdAt)
+                              : a.createdAt.compareTo(b.createdAt));
                         if (filteredReports.isEmpty) {
                           return _emptyState(
                             icon: Icons.filter_alt_off_rounded,
