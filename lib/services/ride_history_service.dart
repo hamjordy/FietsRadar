@@ -9,6 +9,7 @@ class RideRecord {
     required this.durationSeconds,
     required this.distanceMeters,
     required this.destination,
+    this.maxSpeedKmh = 0,
   });
 
   final String id;
@@ -16,6 +17,7 @@ class RideRecord {
   final int durationSeconds;
   final double distanceMeters;
   final String destination;
+  final double maxSpeedKmh;
 
   factory RideRecord.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
@@ -23,22 +25,27 @@ class RideRecord {
     final durationSeconds = json['durationSeconds'];
     final distanceMeters = json['distanceMeters'];
     final destination = json['destination'];
+    final maxSpeed = json['maxSpeedKmh'] ?? 0;
 
     if (id is! String ||
         startedAt is! String ||
         durationSeconds is! num ||
         distanceMeters is! num ||
-        destination is! String) {
+        destination is! String ||
+        maxSpeed is! num) {
       throw const FormatException('Ongeldige ritregistratie.');
     }
 
     final parsedDate = DateTime.tryParse(startedAt);
     final duration = durationSeconds.toInt();
     final distance = distanceMeters.toDouble();
+    final parsedMaxSpeed = maxSpeed.toDouble();
     if (parsedDate == null ||
         duration < 0 ||
         !distance.isFinite ||
-        distance < 0) {
+        distance < 0 ||
+        !parsedMaxSpeed.isFinite ||
+        parsedMaxSpeed < 0) {
       throw const FormatException('Ongeldige ritregistratie.');
     }
 
@@ -48,6 +55,7 @@ class RideRecord {
       durationSeconds: duration,
       distanceMeters: distance,
       destination: destination,
+      maxSpeedKmh: parsedMaxSpeed,
     );
   }
 
@@ -57,6 +65,7 @@ class RideRecord {
         'durationSeconds': durationSeconds,
         'distanceMeters': distanceMeters,
         'destination': destination,
+        'maxSpeedKmh': maxSpeedKmh,
       };
 }
 
@@ -75,6 +84,7 @@ class ActiveRideSession {
     required this.distanceMeters,
     required this.routeProfile,
     required this.savedAt,
+    this.maxSpeedKmh = 0,
   });
 
   final DateTime startedAt;
@@ -88,6 +98,7 @@ class ActiveRideSession {
   final double distanceMeters;
   final String routeProfile;
   final DateTime savedAt;
+  final double maxSpeedKmh;
 
   factory ActiveRideSession.fromJson(Map<String, dynamic> json) {
     final startedAt = json['startedAt'];
@@ -101,6 +112,7 @@ class ActiveRideSession {
     final distance = json['distanceMeters'];
     final profile = json['routeProfile'];
     final savedAt = json['savedAt'];
+    final maxSpeed = json['maxSpeedKmh'] ?? 0;
 
     if (startedAt is! String ||
         name is! String || name.trim().isEmpty ||
@@ -108,6 +120,7 @@ class ActiveRideSession {
         latitude is! num || longitude is! num ||
         pausedDuration is! num || isPaused is! bool ||
         distance is! num || profile is! String || savedAt is! String ||
+        maxSpeed is! num ||
         (pausedAtValue != null && pausedAtValue is! String)) {
       throw const FormatException('Ongeldige actieve rit.');
     }
@@ -120,6 +133,7 @@ class ActiveRideSession {
     final lat = latitude.toDouble();
     final lon = longitude.toDouble();
     final meters = distance.toDouble();
+    final parsedMaxSpeed = maxSpeed.toDouble();
     final pausedMs = pausedDuration.toInt();
     if (parsedStartedAt == null ||
         parsedSavedAt == null ||
@@ -127,6 +141,7 @@ class ActiveRideSession {
         !lat.isFinite || lat < -90 || lat > 90 ||
         !lon.isFinite || lon < -180 || lon > 180 ||
         !meters.isFinite || meters < 0 ||
+        !parsedMaxSpeed.isFinite || parsedMaxSpeed < 0 ||
         pausedMs < 0 ||
         profile.isEmpty ||
         (isPaused && parsedPausedAt == null)) {
@@ -145,6 +160,7 @@ class ActiveRideSession {
       distanceMeters: meters,
       routeProfile: profile,
       savedAt: parsedSavedAt,
+      maxSpeedKmh: parsedMaxSpeed,
     );
   }
 
@@ -160,6 +176,7 @@ class ActiveRideSession {
         'distanceMeters': distanceMeters,
         'routeProfile': routeProfile,
         'savedAt': savedAt.toIso8601String(),
+        'maxSpeedKmh': maxSpeedKmh,
       };
 }
 
