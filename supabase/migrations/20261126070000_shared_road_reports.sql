@@ -43,14 +43,13 @@ create policy "Cyclists can publish their own road reports"
 
 drop policy if exists "Cyclists can remove their recent reports"
   on public.road_reports;
-create policy "Cyclists can remove their recent reports"
+drop policy if exists "Cyclists can remove their own road reports"
+  on public.road_reports;
+create policy "Cyclists can remove their own road reports"
   on public.road_reports
   for delete
   to authenticated
-  using (
-    user_id = (select auth.uid())
-    and created_at > now() - interval '10 minutes'
-  );
+  using (user_id = (select auth.uid()));
 
 create or replace function public.prepare_road_report()
 returns trigger
