@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Place> _suggestions = [];
   List<RoadReport> _reports = [];
   ReportType? _selectedReportFilter;
+  ReportType? _selectedMapReportFilter;
   BikeRoute? _route;
   Place? _destination;
 
@@ -704,7 +705,8 @@ class _HomeScreenState extends State<HomeScreen> {
     RoadReport? closestReport;
     var closestMeters = 150.0;
 
-    for (final report in _reports) {
+    for (final report in _reports.where((report) =>
+        _selectedMapReportFilter == null || report.type == _selectedMapReportFilter)) {
       if (_announcedNearbyReportIds.contains(report.id)) continue;
       final meters = distance.as(LengthUnit.Meter, current, report.location);
       if (meters <= closestMeters) {
@@ -1418,6 +1420,32 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                       ],
                     ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: const Text('Alle meldingen'),
+                          selected: _selectedMapReportFilter == null,
+                          onSelected: (_) => setState(() => _selectedMapReportFilter = null),
+                          selectedColor: const Color(0xFFDCEBDD),
+                        ),
+                      ),
+                      ...ReportType.values.map((type) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ChoiceChip(
+                          label: Text(type.label),
+                          selected: _selectedMapReportFilter == type,
+                          onSelected: (_) => setState(() => _selectedMapReportFilter = type),
+                          selectedColor: const Color(0xFFDCEBDD),
+                        ),
+                      )),
+                    ],
                   ),
                 ),
                 if (_suggestions.isEmpty && _searchController.text.trim().isEmpty)
