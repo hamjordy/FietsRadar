@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _ridePaused = false;
   Position? _lastRidePosition;
   double _recordedRideMeters = 0;
+  double _lastPersistedRideMeters = 0;
 
   static const String _routeProfileKey = 'fietsradar.route_profile.v1';
   String _routeProfile = 'trekking';
@@ -145,6 +146,8 @@ class _HomeScreenState extends State<HomeScreen> {
         if (mounted) _mapController.move(_currentLocation, 15);
       });
       await _startPositionTracking();
+      await _loadRouteProfile();
+      await _restoreActiveRideSession();
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -557,6 +560,106 @@ class _HomeScreenState extends State<HomeScreen> {
     if (meters / elapsedSeconds > 15) return;
 
     _recordedRideMeters += meters;
+    if (_recordedRideMeters - _lastPersistedRideMeters >= 25) {
+      _lastPersistedRideMeters = _recordedRideMeters;
+      unawaited(_persistActiveRideSession());
+    }
+  }
+
+  Future<void> _persistActiveRideSession() async {
+    final startedAt = _rideStartedAt;
+    final destination = _destination;
+    if (startedAt == null || destination == null || !_navigating) return;
+    try {
+      await _rideHistoryService.saveActiveSession(ActiveRideSession(
+        startedAt: startedAt,
+        destinationName: destination.name,
+        destinationDisplayName: destination.displayName,
+        destinationLatitude: destination.latitude,
+        destinationLongitude: destination.longitude,
+        pausedDurationMs: _ridePausedDuration.inMilliseconds,
+        pausedAt: _ridePausedAt,
+        isPaused: _ridePaused,
+        distanceMeters: _recordedRideMeters,
+        routeProfile: _routeProfile,
+        savedAt: DateTime.now(),
+      ));
+    } catch (_) {
+      // A storage failure must never interrupt live navigation.
+    }
+  }
+
+  Future<void> _restoreActiveRideSession() async {
+    ActiveRideSession? session;
+    try {
+      session = await _rideHistoryService.loadActiveSession();
+    } catch (_) {
+      return;
+    }
+    if (!mounted || session == null) return;
+
+    final now = DateTime.now();
+    if (session.savedAt.isAfter(now.add(const Duration(minutes: 5))) ||
+        now.difference(session.savedAt) > const Duration(hours: 12) ||
+        session.startedAt.isAfter(now.add(const Duration(minutes: 5)))) {
+      await _rideHistoryService.clearActiveSession();
+      return;
+    }
+
+    final position = _position;
+    if (position == null) return;
+    final profile = _routeProfiles.containsKey(session.routeProfile)
+        ? session.routeProfile
+        : 'trekking';
+    final destination = Place(
+      name: session.destinationName,
+      displayName: session.destinationDisplayName,
+      latitude: session.destinationLatitude,
+      longitude: session.destinationLongitude,
+    );
+
+    try {
+      final route = await _routeService.getBikeRoute(
+        start: LatLng(position.latitude, position.longitude),
+        destination: destination.location,
+        profile: profile,
+      );
+      if (!mounted) return;
+      setState(() {
+        _destination = destination;
+        _searchController.text = destination.name;
+        _routeProfile = profile;
+        _route = route;
+        _rideStartedAt = session!.startedAt;
+        _ridePausedDuration = Duration(milliseconds: session!.pausedDurationMs);
+        _ridePausedAt = session!.pausedAt;
+        _ridePaused = session!.isPaused;
+        _recordedRideMeters = session!.distanceMeters;
+        _lastPersistedRideMeters = session!.distanceMeters;
+        _lastRidePosition = session!.isPaused ? null : position;
+        _navigating = true;
+        _offRoute = false;
+        _offRouteUpdates = 0;
+        _instructionCursor = 0;
+        _furthestRouteIndex = 0;
+        _lastApproachInstructionIndex = null;
+        _lastSpokenInstructionIndex = null;
+        _arrivalAnnounced = false;
+      });
+      await _startPositionTracking(keepAliveInBackground: true);
+      if (!mounted) return;
+      _showMessage(session.isPaused
+          ? 'Je gepauzeerde fietstocht is hersteld.'
+          : 'Je fietstocht is hersteld en de navigatie is hervat.');
+      if (!session.isPaused) {
+        await _speechService.announce('Je eerdere fietsnavigatie is hersteld.');
+      }
+    } catch (_) {
+      // Keep the snapshot so the user can retry when routing is available.
+      if (mounted) {
+        _showMessage('Je actieve rit is gevonden, maar de route kon niet worden hersteld.');
+      }
+    }
   }
 
   Future<void> _loadRideHistory() async {
@@ -575,6 +678,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Clear first so arrival + manual stop cannot save the same ride twice.
     _rideStartedAt = null;
+    await _rideHistoryService.clearActiveSession();
     final now = DateTime.now();
     final pausedDuration = _ridePausedDuration +
         (_ridePausedAt == null ? Duration.zero : now.difference(_ridePausedAt!));
@@ -585,6 +689,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _ridePaused = false;
     _lastRidePosition = null;
     _recordedRideMeters = 0;
+    _lastPersistedRideMeters = 0;
 
     // Ignore accidental starts and GPS sessions without enough valid movement.
     if (duration.inSeconds < 20 || distanceMeters < 25) return;
@@ -706,6 +811,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _ridePaused = false;
     _lastRidePosition = _position;
     _recordedRideMeters = 0;
+    _lastPersistedRideMeters = 0;
     setState(() {
       _navigating = true;
       _offRoute = false;
@@ -721,6 +827,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // persistent notification when the screen is turned off.
     await _startPositionTracking(keepAliveInBackground: true);
     if (!mounted || !_navigating) return;
+    await _persistActiveRideSession();
     await _speechService.announce(
       'FietsRadar navigatie gestart. '
       'Je route is ${formatDistance(_route!.distanceMeters)}. '
@@ -735,6 +842,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _ridePausedAt = DateTime.now();
       _lastRidePosition = null;
     });
+    await _persistActiveRideSession();
     await _speechService.stop();
     if (mounted) _showMessage('Rit gepauzeerd. Je afstand en ritduur lopen niet door.');
   }
@@ -750,6 +858,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _ridePaused = false;
       _lastRidePosition = _position;
     });
+    await _persistActiveRideSession();
     await _speechService.announce('Je fietsnavigatie wordt hervat.');
   }
 
