@@ -126,6 +126,24 @@ class _HomeScreenState extends State<HomeScreen> {
     return hours <= 0 ? 0 : (_recordedRideMeters / 1000) / hours;
   }
 
+  double _averageSpeedForRide(RideRecord ride) {
+    if (ride.durationSeconds <= 0) return 0;
+    return (ride.distanceMeters / 1000) / (ride.durationSeconds / 3600);
+  }
+
+  String get _historyAverageSpeedLabel {
+    final totalSeconds = _rideHistory.fold<int>(
+      0,
+      (total, ride) => total + ride.durationSeconds,
+    );
+    if (totalSeconds <= 0) return '—';
+    final totalMeters = _rideHistory.fold<double>(
+      0,
+      (total, ride) => total + ride.distanceMeters,
+    );
+    return '${((totalMeters / 1000) / (totalSeconds / 3600)).toStringAsFixed(1).replaceAll('.', ',')} km/u';
+  }
+
   double get _speedKmh {
     final speed = (_position?.speed ?? 0) * 3.6;
     return speed.isFinite ? math.max(0.0, speed).toDouble() : 0.0;
@@ -858,7 +876,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                             subtitle: Text(
-                              '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year} · ${formatClock(date)} · ${formatDuration(Duration(seconds: ride.durationSeconds))} · gem. ${(ride.distanceMeters / 1000 / (ride.durationSeconds / 3600)).toStringAsFixed(1).replaceAll('.', ',')} km/u',
+                              '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year} · ${formatClock(date)} · ${formatDuration(Duration(seconds: ride.durationSeconds))} · gem. ${_averageSpeedForRide(ride).toStringAsFixed(1).replaceAll('.', ',')} km/u',
                             ),
                             trailing: Column(
                               mainAxisSize: MainAxisSize.min,
@@ -3063,7 +3081,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Text('${_rideHistory.length} opgeslagen ritten', style: const TextStyle(fontWeight: FontWeight.w800)),
                           Text(
-                            'Totaal ${formatDistance(_rideHistory.fold<double>(0, (total, ride) => total + ride.distanceMeters))} · gemiddelde ${_rideHistory.isEmpty ? '—' : ((_rideHistory.fold<double>(0, (total, ride) => total + ride.distanceMeters) / 1000) / (_rideHistory.fold<int>(0, (total, ride) => total + ride.durationSeconds) / 3600)).toStringAsFixed(1).replaceAll('.', ',')} km/u',
+                            'Totaal ${formatDistance(_rideHistory.fold<double>(0, (total, ride) => total + ride.distanceMeters))} · gemiddelde $_historyAverageSpeedLabel',
                             style: const TextStyle(color: Colors.black54, fontSize: 12),
                           ),
                           Text(
