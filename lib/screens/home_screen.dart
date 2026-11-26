@@ -97,6 +97,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _rerouting = false;
   bool _backgroundTrackingActive = false;
   bool _arrivalAnnounced = false;
+  bool _voiceGuidanceEnabled = true;
+  bool _nearbySafetyAlertsEnabled = true;
+  static const String _voiceGuidanceKey = 'fietsradar.voice_guidance.v1';
+  static const String _nearbySafetyAlertsKey = 'fietsradar.nearby_safety_alerts.v1';
   final Set<String> _announcedNearbyReportIds = <String>{};
   DateTime? _lastRerouteAttempt;
 
@@ -116,6 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
     unawaited(_loadSavedPlaces());
     unawaited(_loadRideHistory());
     unawaited(_loadRouteProfile());
+    unawaited(_loadAppPreferences());
     unawaited(_connectSharedReports());
     _reportExpiryTimer = Timer.periodic(
       const Duration(minutes: 1),
@@ -188,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
             'Controleer je locatietoestemming en probeer opnieuw.',
           );
           unawaited(
-            _speechService.announce(
+            _announce(
               'De achtergrond GPS kon niet starten. De navigatie is gestopt.',
             ),
           );
@@ -252,6 +257,48 @@ class _HomeScreenState extends State<HomeScreen> {
         _suggestions = [];
       });
     }
+  }
+
+  Future<void> _loadAppPreferences() async {
+    try {
+      final voice = await _preferences.getBool(_voiceGuidanceKey);
+      final alerts = await _preferences.getBool(_nearbySafetyAlertsKey);
+      if (!mounted) return;
+      setState(() {
+        _voiceGuidanceEnabled = voice ?? true;
+        _nearbySafetyAlertsEnabled = alerts ?? true;
+      });
+    } catch (_) {
+      // Defaults keep navigation and nearby safety alerts enabled.
+    }
+  }
+
+  Future<void> _setVoiceGuidanceEnabled(bool enabled) async {
+    setState(() => _voiceGuidanceEnabled = enabled);
+    try {
+      await _preferences.setBool(_voiceGuidanceKey, enabled);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _voiceGuidanceEnabled = !enabled);
+      _showMessage('De spraakinstelling kon niet worden opgeslagen.');
+    }
+  }
+
+  Future<void> _setNearbySafetyAlertsEnabled(bool enabled) async {
+    setState(() => _nearbySafetyAlertsEnabled = enabled);
+    if (!enabled) _announcedNearbyReportIds.clear();
+    try {
+      await _preferences.setBool(_nearbySafetyAlertsKey, enabled);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _nearbySafetyAlertsEnabled = !enabled);
+      _showMessage('De veiligheidsinstelling kon niet worden opgeslagen.');
+    }
+  }
+
+  Future<void> _announce(String message) async {
+    if (!_voiceGuidanceEnabled) return;
+    await _speechService.announce(message);
   }
 
   Future<void> _loadRouteProfile() async {
@@ -1057,6 +1104,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _checkNearbyReportAlerts(LatLng current, Distance distance) {
+    if (!_nearbySafetyAlertsEnabled) return;
     RoadReport? closestReport;
     var closestMeters = 150.0;
 
@@ -2816,6 +2864,111 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildSettingsView() {
+    return SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+        children: [
+          const Text(
+            'Instellingen',
+            style: TextStyle(
+              fontSize: 25,
+              fontWeight: FontWeight.w900,
+              color: FietsRadarApp.forest,
+            ),
+          ),
+          const SizedBox(height: 5),
+          const Text(
+            'Pas je navigatie en fietsveiligheidsmeldingen aan.',
+            style: TextStyle(color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Column(
+              children: [
+                SwitchListTile.adaptive(
+                  secondary: const Icon(Icons.record_voice_over_rounded,
+                      color: FietsRadarApp.forest),
+                  title: const Text('Gesproken navigatie',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: const Text(
+                    'Schakel gesproken afslagen en routewaarschuwingen in of uit.',
+                  ),
+                  value: _voiceGuidanceEnabled,
+                  onChanged: _setVoiceGuidanceEnabled,
+                ),
+                const Divider(height: 1, indent: 16, endIndent: 16),
+                SwitchListTile.adaptive(
+                  secondary: const Icon(Icons.health_and_safety_rounded,
+                      color: FietsRadarApp.forest),
+                  title: const Text('Waarschuwingen voor gevaar',
+                      style: TextStyle(fontWeight: FontWeight.w800)),
+                  subtitle: const Text(
+                    'Laat FietsRadar tijdens navigatie waarschuwen voor actieve meldingen in de buurt.',
+                  ),
+                  value: _nearbySafetyAlertsEnabled,
+                  onChanged: _setNearbySafetyAlertsEnabled,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.tune_rounded,
+                  color: FietsRadarApp.forest),
+              title: const Text('Routevoorkeuren',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: Text(
+                'Huidig profiel: ${_routeProfiles[_routeProfile] ?? 'Gebalanceerd'}',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: _showRoutePreferences,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.notifications_active_outlined,
+                  color: FietsRadarApp.forest),
+              title: const Text('Wegmeldingen',
+                  style: TextStyle(fontWeight: FontWeight.w800)),
+              subtitle: const Text(
+                'Bekijk actieve meldingen, filters en meldingen van andere fietsers.',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => setState(() => _selectedTab = 1),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            margin: EdgeInsets.zero,
+            child: const Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.privacy_tip_outlined,
+                      color: FietsRadarApp.forest),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Privacy: je ritgeschiedenis wordt lokaal op dit toestel bewaard. Je doorlopende GPS-beweging wordt niet met andere fietsers gedeeld.',
+                      style: TextStyle(color: Colors.black54, height: 1.4),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildRideView() {
     final route = _route;
     final remainingDistance = route == null
@@ -2868,7 +3021,16 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Text('${_rideHistory.length} opgeslagen ritten', style: const TextStyle(fontWeight: FontWeight.w800)),
                           Text(
-                            'Totaal ${formatDistance(_rideHistory.fold<double>(0, (total, ride) => total + ride.distanceMeters))}',
+                            'Totaal ${formatDistance(_rideHistory.fold<double>(0, (total, ride) => total + ride.distanceMeters))} · gemiddelde ${_rideHistory.isEmpty ? '—' : ((_rideHistory.fold<double>(0, (total, ride) => total + ride.distanceMeters) / 1000) / (_rideHistory.fold<int>(0, (total, ride) => total + ride.durationSeconds) / 3600)).toStringAsFixed(1).replaceAll('.', ',')} km/u',
+                            style: const TextStyle(color: Colors.black54, fontSize: 12),
+                          ),
+                          Text(
+                            'Deze week: ${formatDistance(_rideHistory.where((ride) {
+                              final now = DateTime.now();
+                              final startOfWeek = DateTime(now.year, now.month, now.day)
+                                  .subtract(Duration(days: now.weekday - 1));
+                              return !ride.startedAt.isBefore(startOfWeek);
+                            }).fold<double>(0, (total, ride) => total + ride.distanceMeters))}',
                             style: const TextStyle(color: Colors.black54, fontSize: 12),
                           ),
                         ],
@@ -3104,6 +3266,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildMapView(),
           _buildReportsView(),
           _buildRideView(),
+          _buildSettingsView(),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -3126,6 +3289,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.directions_bike_outlined),
             selectedIcon: Icon(Icons.directions_bike_rounded),
             label: 'Mijn rit',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings_rounded),
+            label: 'Instellingen',
           ),
         ],
       ),
