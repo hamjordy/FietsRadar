@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -6,6 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app.dart';
 import '../models/place.dart';
@@ -34,6 +36,12 @@ class _HomeScreenState extends State<HomeScreen> {
   final SpeechService _speechService = SpeechService();
   final ReportStorageService _reportStorageService = ReportStorageService();
   final SharedReportService _sharedReportService = SharedReportService();
+  final SharedPreferencesAsync _preferences = SharedPreferencesAsync();
+
+  static const String _favoritePlacesKey = 'fietsradar.favorite_places.v1';
+  static const String _recentPlacesKey = 'fietsradar.recent_places.v1';
+  List<Place> _favoritePlaces = [];
+  List<Place> _recentPlaces = [];
 
   Future<void>? _reportsLoadFuture;
   StreamSubscription<List<RoadReport>>? _sharedReportsSubscription;
@@ -80,6 +88,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _reportsLoadFuture = _loadReports();
+    unawaited(_loadSavedPlaces());
     unawaited(_connectSharedReports());
     _reportExpiryTimer = Timer.periodic(
       const Duration(minutes: 1),
@@ -210,6 +219,157 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadSavedPlaces() async {
+    try {
+      final favoritesRaw = await _preferences.getString(_favoritePlacesKey);
+      final recentRaw = await _preferences.getString(_recentPlacesKey);
+      List<Place> decode(String? raw) {
+        if (raw == null || raw.isEmpty) return [];
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is! List) return [];
+          return decoded
+              .whereType<Map<String, dynamic>>()
+              .map((item) => Place(
+                    name: item['name'] as String,
+                    displayName: item['displayName'] as String,
+                    latitude: (item['latitude'] as num).toDouble(),
+                    longitude: (item['longitude'] as num).toDouble(),
+                  ))
+              .toList();
+        } catch (_) {
+          return [];
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _favoritePlaces = decode(favoritesRaw);
+        _recentPlaces = decode(recentRaw);
+      });
+    } catch (_) {
+      // Saved destinations are optional; the map remains usable without them.
+    }
+  }
+
+  Future<void> _savePlaces() async {
+    Map<String, dynamic> encode(Place place) => {
+          'name': place.name,
+          'displayName': place.displayName,
+          'latitude': place.latitude,
+          'longitude': place.longitude,
+        };
+    await _preferences.setString(
+      _favoritePlacesKey,
+      jsonEncode(_favoritePlaces.map(encode).toList()),
+    );
+    await _preferences.setString(
+      _recentPlacesKey,
+      jsonEncode(_recentPlaces.map(encode).toList()),
+    );
+  }
+
+  bool _isFavorite(Place place) => _favoritePlaces.any(
+        (saved) =>
+            saved.latitude == place.latitude &&
+            saved.longitude == place.longitude,
+      );
+
+  Future<void> _toggleFavorite(Place place) async {
+    setState(() {
+      if (_isFavorite(place)) {
+        _favoritePlaces.removeWhere((saved) =>
+            saved.latitude == place.latitude &&
+            saved.longitude == place.longitude);
+      } else {
+        _favoritePlaces.insert(0, place);
+      }
+    });
+    try {
+      await _savePlaces();
+      _showMessage(_isFavorite(place)
+          ? '${place.name} toegevoegd aan favorieten.'
+          : '${place.name} verwijderd uit favorieten.');
+    } catch (_) {
+      _showMessage('Favorieten konden niet worden opgeslagen.');
+    }
+  }
+
+  Future<void> _rememberRecentPlace(Place place) async {
+    _recentPlaces.removeWhere((saved) =>
+        saved.latitude == place.latitude &&
+        saved.longitude == place.longitude);
+    _recentPlaces.insert(0, place);
+    if (_recentPlaces.length > 8) {
+      _recentPlaces = _recentPlaces.take(8).toList();
+    }
+    try {
+      await _savePlaces();
+    } catch (_) {
+      // Recent destinations are a convenience, not required for navigation.
+    }
+  }
+
+  Widget _buildQuickDestinations() {
+    if (_favoritePlaces.isEmpty && _recentPlaces.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    Widget destinationChips(List<Place> places, IconData icon) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: places
+              .map((place) => Padding(
+                    padding: const EdgeInsets.only(right: 7),
+                    child: ActionChip(
+                      avatar: Icon(icon, size: 16, color: FietsRadarApp.forest),
+                      label: Text(
+                        place.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      onPressed: () => _selectDestination(place),
+                    ),
+                  ))
+              .toList(),
+        ),
+      );
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 7),
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 12,
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_favoritePlaces.isNotEmpty) ...[
+            const Text('Favorieten',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+            destinationChips(_favoritePlaces.take(8).toList(), Icons.star_rounded),
+          ],
+          if (_recentPlaces.isNotEmpty) ...[
+            const Text('Recent',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12)),
+            destinationChips(_recentPlaces.take(5).toList(), Icons.history_rounded),
+          ],
+        ],
+      ),
+    );
+  }
+
   Future<void> _selectDestination(Place place) async {
     FocusScope.of(context).unfocus();
     if (_navigating) {
@@ -225,6 +385,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _showMessage('Zet GPS aan om een fietsroute te berekenen.');
       return;
     }
+
+    await _rememberRecentPlace(place);
+    if (!mounted) return;
 
     setState(() {
       _destination = place;
@@ -944,6 +1107,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
+                if (_suggestions.isEmpty && _searchController.text.trim().isEmpty)
+                  _buildQuickDestinations(),
                 if (_suggestions.isNotEmpty)
                   Container(
                     margin: const EdgeInsets.only(top: 7),
@@ -981,6 +1146,20 @@ class _HomeScreenState extends State<HomeScreen> {
                             place.displayName,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: IconButton(
+                            tooltip: _isFavorite(place)
+                                ? 'Verwijder favoriet'
+                                : 'Voeg toe aan favorieten',
+                            onPressed: () => _toggleFavorite(place),
+                            icon: Icon(
+                              _isFavorite(place)
+                                  ? Icons.star_rounded
+                                  : Icons.star_border_rounded,
+                              color: _isFavorite(place)
+                                  ? const Color(0xFFE5A000)
+                                  : Colors.black45,
+                            ),
                           ),
                           onTap: () => _selectDestination(place),
                         );
