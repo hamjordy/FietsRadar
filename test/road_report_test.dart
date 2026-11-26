@@ -83,6 +83,7 @@ void main() {
 
       expect(report.isShared, isTrue);
       expect(report.isResolved, isFalse);
+      expect(report.isActive, isTrue);
       expect(report.resolvedAt, isNull);
       expect(report.type, ReportType.slippery);
       expect(report.ownerId, 'a6e2fc01-a5ed-4e56-aebd-1136951aa51f');
@@ -104,6 +105,7 @@ void main() {
         'resolved_at': '2026-11-26T18:00:00Z',
       });
       expect(report.isResolved, isTrue);
+      expect(report.isActive, isFalse);
       expect(report.resolvedAt?.toUtc(), DateTime.utc(2026, 11, 26, 18));
     });
 
