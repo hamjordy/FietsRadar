@@ -13,6 +13,7 @@ import '../models/road_report.dart';
 import '../services/location_service.dart';
 import '../services/route_service.dart';
 import '../services/report_storage_service.dart';
+import '../services/shared_report_service.dart';
 import '../services/speech_service.dart';
 import '../utils/formatters.dart';
 
@@ -32,8 +33,15 @@ class _HomeScreenState extends State<HomeScreen> {
   final RouteService _routeService = RouteService();
   final SpeechService _speechService = SpeechService();
   final ReportStorageService _reportStorageService = ReportStorageService();
+  final SharedReportService _sharedReportService = SharedReportService();
 
   Future<void>? _reportsLoadFuture;
+  StreamSubscription<List<RoadReport>>? _sharedReportsSubscription;
+  Timer? _reportExpiryTimer;
+  List<RoadReport> _sharedReports = [];
+  bool _sharingConnecting = false;
+  bool _sharingActive = false;
+  String? _sharingError;
 
   StreamSubscription<Position>? _positionSubscription;
   Position? _position;
@@ -72,12 +80,19 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _reportsLoadFuture = _loadReports();
+    unawaited(_connectSharedReports());
+    _reportExpiryTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _removeExpiredSharedReports(),
+    );
     _initializeLocation();
   }
 
   @override
   void dispose() {
     _positionSubscription?.cancel();
+    _sharedReportsSubscription?.cancel();
+    _reportExpiryTimer?.cancel();
     _searchController.dispose();
     unawaited(_speechService.dispose());
     super.dispose();
@@ -510,9 +525,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Kies het soort melding. De melding blijft op dit toestel bewaard.',
-                style: TextStyle(color: Colors.black54),
+              Text(
+                _sharingActive
+                    ? 'Deze melding wordt met andere FietsRadar-gebruikers gedeeld.'
+                    : 'De melding wordt op dit toestel bewaard. Online delen is nog niet actief.',
+                style: const TextStyle(color: Colors.black54),
               ),
               const SizedBox(height: 12),
               for (final type in ReportType.values)
@@ -540,16 +557,95 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  List<RoadReport> _combineReports(
+    Iterable<RoadReport> local,
+    Iterable<RoadReport> shared,
+  ) {
+    final byId = <String, RoadReport>{};
+    for (final report in [...local, ...shared]) {
+      byId[report.id] = report;
+    }
+    final combined = byId.values.toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return combined;
+  }
+
   Future<void> _loadReports() async {
     try {
       final savedReports = await _reportStorageService.loadReports();
       if (!mounted) return;
-      setState(() => _reports = savedReports);
+      setState(() {
+        _reports = _combineReports(savedReports, _sharedReports);
+      });
     } catch (_) {
       if (mounted) {
         _showMessage('Opgeslagen meldingen konden niet worden geladen.');
       }
     }
+  }
+
+  Future<void> _connectSharedReports() async {
+    if (!_sharedReportService.isConfigured) return;
+
+    await _sharedReportsSubscription?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _sharingConnecting = true;
+      _sharingError = null;
+    });
+
+    try {
+      await _sharedReportService.ensureSignedIn();
+      if (!mounted) return;
+      _sharedReportsSubscription = _sharedReportService.watchReports().listen(
+        (reports) {
+          if (!mounted) return;
+          _sharedReports = reports;
+          setState(() {
+            _sharingConnecting = false;
+            _sharingActive = true;
+            _sharingError = null;
+            _reports = _combineReports(
+              _reports.where((report) => !report.isShared),
+              _sharedReports,
+            );
+          });
+        },
+        onError: (Object error) {
+          if (!mounted) return;
+          setState(() {
+            _sharingConnecting = false;
+            _sharingActive = false;
+            _sharingError =
+                'Live meldingen konden niet worden bijgewerkt. Controleer je verbinding.';
+          });
+        },
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _sharingConnecting = false;
+        _sharingActive = false;
+        _sharingError =
+            'Verbinden met gedeelde meldingen is niet gelukt. Probeer opnieuw.';
+      });
+    }
+  }
+
+  void _removeExpiredSharedReports() {
+    final now = DateTime.now();
+    final activeReports = _sharedReports
+        .where((report) =>
+            report.expiresAt == null || report.expiresAt!.isAfter(now))
+        .toList();
+    if (activeReports.length == _sharedReports.length || !mounted) return;
+    _sharedReports = activeReports;
+    setState(() {
+      _reports = _combineReports(
+        _reports.where((report) => !report.isShared),
+        _sharedReports,
+      );
+    });
   }
 
   Future<void> _addReport(ReportType type) async {
@@ -566,32 +662,99 @@ class _HomeScreenState extends State<HomeScreen> {
       location: LatLng(position.latitude, position.longitude),
       createdAt: DateTime.now(),
     );
-    final updatedReports = <RoadReport>[report, ..._reports];
+    final localReports = <RoadReport>[
+      report,
+      ..._reports.where((saved) => !saved.isShared),
+    ];
 
     setState(() {
-      _reports = updatedReports;
+      _reports = _combineReports(localReports, _sharedReports);
       _selectedTab = 1;
     });
 
     try {
-      await _reportStorageService.saveReports(updatedReports);
-      _showMessage('Melding opgeslagen op dit toestel.');
+      await _reportStorageService.saveReports(localReports);
     } catch (_) {
       _showMessage(
         'Melding staat voorlopig alleen in deze sessie. Opslaan is mislukt.',
+      );
+      return;
+    }
+
+    if (_sharingActive) {
+      try {
+        final sharedReport =
+            await _sharedReportService.publishReport(report);
+        if (!mounted) return;
+        _sharedReports = [
+          sharedReport,
+          ..._sharedReports.where((saved) => saved.id != sharedReport.id),
+        ];
+        final remainingLocal = localReports
+            .where((saved) => saved.id != report.id)
+            .toList();
+        await _reportStorageService.saveReports(remainingLocal);
+        setState(() {
+          _reports = _combineReports(remainingLocal, _sharedReports);
+        });
+        _showMessage('Melding gedeeld met andere FietsRadar-gebruikers.');
+      } catch (_) {
+        _showMessage(
+          'Melding lokaal opgeslagen. Online delen is niet gelukt; probeer later opnieuw.',
+        );
+      }
+    } else {
+      _showMessage(
+        _sharedReportService.isConfigured
+            ? 'Melding lokaal opgeslagen. Live delen is niet verbonden.'
+            : 'Melding lokaal opgeslagen. Online delen is nog niet ingesteld.',
       );
     }
   }
 
   Future<void> _deleteReport(String reportId) async {
+    RoadReport? target;
+    for (final report in _reports) {
+      if (report.id == reportId) {
+        target = report;
+        break;
+      }
+    }
+    if (target == null) return;
+
+    if (target.isShared) {
+      if (target.ownerId != _sharedReportService.currentUserId) {
+        _showMessage('Je kunt alleen je eigen gedeelde meldingen verwijderen.');
+        return;
+      }
+      try {
+        await _sharedReportService.deleteReport(reportId);
+        _sharedReports =
+            _sharedReports.where((report) => report.id != reportId).toList();
+        if (!mounted) return;
+        setState(() {
+          _reports = _combineReports(
+            _reports.where((report) => !report.isShared),
+            _sharedReports,
+          );
+        });
+        _showMessage('Gedeelde melding verwijderd.');
+      } catch (_) {
+        _showMessage('De gedeelde melding kon niet worden verwijderd.');
+      }
+      return;
+    }
+
     final previousReports = List<RoadReport>.of(_reports);
-    final updatedReports = _reports
-        .where((report) => report.id != reportId)
+    final localReports = _reports
+        .where((report) => !report.isShared && report.id != reportId)
         .toList();
-    setState(() => _reports = updatedReports);
+    setState(() {
+      _reports = _combineReports(localReports, _sharedReports);
+    });
 
     try {
-      await _reportStorageService.saveReports(updatedReports);
+      await _reportStorageService.saveReports(localReports);
       _showMessage('Melding verwijderd.');
     } catch (_) {
       if (!mounted) return;
@@ -1217,7 +1380,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 5),
             Text(
-              '${_reports.length} melding(en) op dit toestel',
+              _sharingActive
+                  ? '${_reports.length} actieve meldingen · live gedeeld'
+                  : '${_reports.length} meldingen op dit toestel',
               style: const TextStyle(color: Colors.black54),
             ),
             const SizedBox(height: 13),
@@ -1225,16 +1390,67 @@ class _HomeScreenState extends State<HomeScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFEAF2E6),
+                color: _sharingActive
+                    ? const Color(0xFFEAF2E6)
+                    : const Color(0xFFFFF3D6),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Text(
-                'Let op: meldingen worden in deze eerste versie alleen lokaal bewaard. Ze worden nog niet met andere fietsers gedeeld.',
-                style: TextStyle(
-                  color: FietsRadarApp.forest,
-                  fontSize: 12,
-                  height: 1.4,
-                ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    _sharingActive
+                        ? Icons.cell_tower_rounded
+                        : Icons.cloud_off_rounded,
+                    color: _sharingActive
+                        ? FietsRadarApp.forest
+                        : const Color(0xFF8A5A00),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _sharingActive
+                              ? 'Live meldingen actief'
+                              : _sharingConnecting
+                                  ? 'Verbinden met live meldingen…'
+                                  : 'Live meldingen niet actief',
+                          style: TextStyle(
+                            color: _sharingActive
+                                ? FietsRadarApp.forest
+                                : const Color(0xFF654300),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          _sharingActive
+                              ? 'Meldingen van andere fietsers verschijnen automatisch. Eigen meldingen kun je verwijderen.'
+                              : _sharedReportService.isConfigured
+                                  ? (_sharingError ??
+                                      'Je meldingen blijven lokaal totdat de verbinding is hersteld.')
+                                  : 'De online backend moet nog worden ingesteld. Je meldingen blijven veilig lokaal bewaard.',
+                          style: TextStyle(
+                            color: _sharingActive
+                                ? FietsRadarApp.forest
+                                : const Color(0xFF654300),
+                            fontSize: 12,
+                            height: 1.4,
+                          ),
+                        ),
+                        if (_sharedReportService.isConfigured &&
+                            !_sharingActive &&
+                            !_sharingConnecting)
+                          TextButton(
+                            onPressed: _connectSharedReports,
+                            child: const Text('Opnieuw verbinden'),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 12),
@@ -1275,7 +1491,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   const TextStyle(fontWeight: FontWeight.w800),
                             ),
                             subtitle: Text(
-                              'Geplaatst om ${formatClock(report.createdAt)} · GPS-locatie',
+                              '${report.isShared ? 'Gedeeld' : 'Alleen op dit toestel'} · ${formatClock(report.createdAt)}',
                             ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -1290,11 +1506,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   },
                                   icon: const Icon(Icons.map_outlined),
                                 ),
-                                IconButton(
-                                  tooltip: 'Melding verwijderen',
-                                  onPressed: () => _deleteReport(report.id),
-                                  icon: const Icon(Icons.delete_outline_rounded),
-                                ),
+                                if (!report.isShared ||
+                                    report.ownerId ==
+                                        _sharedReportService.currentUserId)
+                                  IconButton(
+                                    tooltip: 'Melding verwijderen',
+                                    onPressed: () => _deleteReport(report.id),
+                                    icon: const Icon(Icons.delete_outline_rounded),
+                                  ),
                               ],
                             ),
                           ),

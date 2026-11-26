@@ -52,12 +52,18 @@ class RoadReport {
     required this.type,
     required this.location,
     required this.createdAt,
+    this.expiresAt,
+    this.ownerId,
+    this.isShared = false,
   });
 
   final String id;
   final ReportType type;
   final LatLng location;
   final DateTime createdAt;
+  final DateTime? expiresAt;
+  final String? ownerId;
+  final bool isShared;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -66,6 +72,53 @@ class RoadReport {
         'longitude': location.longitude,
         'createdAt': createdAt.toIso8601String(),
       };
+
+  factory RoadReport.fromRemoteJson(Map<String, dynamic> json) {
+    final rawId = json['id'];
+    final rawType = json['report_type'];
+    final rawLatitude = json['latitude'];
+    final rawLongitude = json['longitude'];
+    final rawCreatedAt = json['created_at'];
+    final rawExpiresAt = json['expires_at'];
+    final rawOwnerId = json['user_id'];
+
+    ReportType? parsedType;
+    for (final candidate in ReportType.values) {
+      if (candidate.name == rawType) {
+        parsedType = candidate;
+        break;
+      }
+    }
+
+    if (rawId is! String || rawId.isEmpty ||
+        parsedType == null ||
+        rawLatitude is! num || !rawLatitude.isFinite ||
+        rawLongitude is! num || !rawLongitude.isFinite ||
+        rawCreatedAt is! String || rawExpiresAt is! String ||
+        rawOwnerId is! String || rawOwnerId.isEmpty) {
+      throw const FormatException('Ongeldige gedeelde wegmelding.');
+    }
+
+    final latitude = rawLatitude.toDouble();
+    final longitude = rawLongitude.toDouble();
+    final createdAt = DateTime.tryParse(rawCreatedAt);
+    final expiresAt = DateTime.tryParse(rawExpiresAt);
+    if (latitude < -90 || latitude > 90 ||
+        longitude < -180 || longitude > 180 ||
+        createdAt == null || expiresAt == null) {
+      throw const FormatException('Ongeldige gedeelde wegmelding.');
+    }
+
+    return RoadReport(
+      id: rawId,
+      type: parsedType,
+      location: LatLng(latitude, longitude),
+      createdAt: createdAt.toLocal(),
+      expiresAt: expiresAt.toLocal(),
+      ownerId: rawOwnerId,
+      isShared: true,
+    );
+  }
 
   factory RoadReport.fromJson(Map<String, dynamic> json) {
     final rawId = json['id'];
