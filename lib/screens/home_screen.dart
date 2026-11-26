@@ -50,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> {
   int? _lastSpokenInstructionIndex;
   int _offRouteUpdates = 0;
   bool _rerouting = false;
+  bool _backgroundTrackingActive = false;
   bool _arrivalAnnounced = false;
   DateTime? _lastRerouteAttempt;
 
@@ -88,20 +89,58 @@ class _HomeScreenState extends State<HomeScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _mapController.move(_currentLocation, 15);
       });
-      await _positionSubscription?.cancel();
-      _positionSubscription = _locationService.watchPosition().listen(
-        _onPositionChanged,
-        onError: (Object error) {
-          if (!mounted) return;
-          setState(() => _locationError = 'GPS-signaal tijdelijk niet beschikbaar.');
-        },
-      );
+      await _startPositionTracking();
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _locationLoading = false;
         _locationError = error.toString().replaceFirst('Exception: ', '');
       });
+    }
+  }
+
+  Future<void> _startPositionTracking({
+    bool keepAliveInBackground = false,
+  }) async {
+    await _positionSubscription?.cancel();
+    if (!mounted) return;
+
+    _positionSubscription = _locationService
+        .watchPosition(keepAliveInBackground: keepAliveInBackground)
+        .listen(
+      _onPositionChanged,
+      onError: (Object error) {
+        if (!mounted) return;
+        setState(() {
+          _locationError = keepAliveInBackground
+              ? 'Achtergrond-GPS kon niet worden gestart.'
+              : 'GPS-signaal tijdelijk niet beschikbaar.';
+          if (keepAliveInBackground) {
+            _backgroundTrackingActive = false;
+            _navigating = false;
+            _offRoute = false;
+          }
+        });
+
+        if (keepAliveInBackground) {
+          _showMessage(
+            'Achtergrond-GPS kon niet starten. De navigatie is gestopt. '
+            'Controleer je locatietoestemming en probeer opnieuw.',
+          );
+          unawaited(
+            _speechService.announce(
+              'De achtergrond GPS kon niet starten. De navigatie is gestopt.',
+            ),
+          );
+          unawaited(_startPositionTracking());
+        }
+      },
+    );
+
+    if (keepAliveInBackground) {
+      setState(() => _backgroundTrackingActive = true);
+    } else {
+      setState(() => _backgroundTrackingActive = false);
     }
   }
 
@@ -216,6 +255,11 @@ class _HomeScreenState extends State<HomeScreen> {
       _lastSpokenInstructionIndex = null;
       _arrivalAnnounced = false;
     });
+    // Start the foreground location service while the app is visible. Android
+    // can then keep the user-initiated navigation session alive with the
+    // persistent notification when the screen is turned off.
+    await _startPositionTracking(keepAliveInBackground: true);
+    if (!mounted || !_navigating) return;
     await _speechService.announce(
       'FietsRadar navigatie gestart. '
       'Je route is ${formatDistance(_route!.distanceMeters)}. '
@@ -227,8 +271,13 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _navigating = false;
       _offRoute = false;
+      _backgroundTrackingActive = false;
+      _offRouteUpdates = 0;
     });
     await _speechService.stop();
+    // Stopping navigation removes the ongoing foreground notification and
+    // returns location updates to normal foreground-only tracking.
+    await _startPositionTracking();
   }
 
   int _nearestRouteIndex(BikeRoute route, LatLng current) {
@@ -968,6 +1017,30 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
+            if (_navigating && _backgroundTrackingActive)
+              const Padding(
+                padding: EdgeInsets.only(top: 9),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.screen_lock_portrait_rounded,
+                      color: Color(0xFF358B5C),
+                      size: 16,
+                    ),
+                    SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'GPS blijft actief wanneer je scherm uitstaat',
+                        style: TextStyle(
+                          color: Color(0xFF358B5C),
+                          fontWeight: FontWeight.w700,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
             if (_rerouting)
               const Padding(
                 padding: EdgeInsets.only(top: 10),
