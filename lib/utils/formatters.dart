@@ -18,3 +18,21 @@ String formatClock(DateTime dateTime) {
   final minutes = dateTime.minute.toString().padLeft(2, '0');
   return '$hours:$minutes';
 }
+
+
+String formatRelativeTime(DateTime dateTime) {
+  final difference = DateTime.now().difference(dateTime);
+  if (difference.isNegative || difference.inSeconds < 60) {
+    return 'Zojuist';
+  }
+  if (difference.inMinutes < 60) {
+    return '${difference.inMinutes} min geleden';
+  }
+  if (difference.inHours < 24) {
+    return '${difference.inHours} uur geleden';
+  }
+  if (difference.inDays == 1) {
+    return 'Gisteren';
+  }
+  return '${difference.inDays} dagen geleden';
+}
