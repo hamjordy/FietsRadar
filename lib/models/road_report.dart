@@ -69,6 +69,8 @@ class RoadReport {
   final bool isResolved;
   final DateTime? resolvedAt;
 
+  bool get isActive => !isResolved;
+
   /// Describes whether the report has a server-confirmed expiry.
   /// Local reports are retained on this device and have no shared validity.
   String validityLabelAt(DateTime now) {
