@@ -597,25 +597,26 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     if (!mounted || session == null) return;
+    final restoredSession = session;
 
     final now = DateTime.now();
-    if (session.savedAt.isAfter(now.add(const Duration(minutes: 5))) ||
-        now.difference(session.savedAt) > const Duration(hours: 12) ||
-        session.startedAt.isAfter(now.add(const Duration(minutes: 5)))) {
+    if (restoredSession.savedAt.isAfter(now.add(const Duration(minutes: 5))) ||
+        now.difference(restoredSession.savedAt) > const Duration(hours: 12) ||
+        restoredSession.startedAt.isAfter(now.add(const Duration(minutes: 5)))) {
       await _rideHistoryService.clearActiveSession();
       return;
     }
 
     final position = _position;
     if (position == null) return;
-    final profile = _routeProfiles.containsKey(session.routeProfile)
-        ? session.routeProfile
+    final profile = _routeProfiles.containsKey(restoredSession.routeProfile)
+        ? restoredSession.routeProfile
         : 'trekking';
     final destination = Place(
-      name: session.destinationName,
-      displayName: session.destinationDisplayName,
-      latitude: session.destinationLatitude,
-      longitude: session.destinationLongitude,
+      name: restoredSession.destinationName,
+      displayName: restoredSession.destinationDisplayName,
+      latitude: restoredSession.destinationLatitude,
+      longitude: restoredSession.destinationLongitude,
     );
 
     try {
@@ -630,13 +631,13 @@ class _HomeScreenState extends State<HomeScreen> {
         _searchController.text = destination.name;
         _routeProfile = profile;
         _route = route;
-        _rideStartedAt = session.startedAt;
-        _ridePausedDuration = Duration(milliseconds: session.pausedDurationMs);
-        _ridePausedAt = session.pausedAt;
-        _ridePaused = session.isPaused;
-        _recordedRideMeters = session.distanceMeters;
-        _lastPersistedRideMeters = session!.distanceMeters;
-        _lastRidePosition = session!.isPaused ? null : position;
+        _rideStartedAt = restoredSession.startedAt;
+        _ridePausedDuration = Duration(milliseconds: restoredSession.pausedDurationMs);
+        _ridePausedAt = restoredSession.pausedAt;
+        _ridePaused = restoredSession.isPaused;
+        _recordedRideMeters = restoredSession.distanceMeters;
+        _lastPersistedRideMeters = restoredSession.distanceMeters;
+        _lastRidePosition = restoredSession.isPaused ? null : position;
         _navigating = true;
         _offRoute = false;
         _offRouteUpdates = 0;
@@ -648,10 +649,10 @@ class _HomeScreenState extends State<HomeScreen> {
       });
       await _startPositionTracking(keepAliveInBackground: true);
       if (!mounted) return;
-      _showMessage(session.isPaused
+      _showMessage(restoredSession.isPaused
           ? 'Je gepauzeerde fietstocht is hersteld.'
           : 'Je fietstocht is hersteld en de navigatie is hervat.');
-      if (!session.isPaused) {
+      if (!restoredSession.isPaused) {
         await _speechService.announce('Je eerdere fietsnavigatie is hersteld.');
       }
     } catch (_) {
