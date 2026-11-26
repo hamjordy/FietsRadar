@@ -47,6 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Place> _recentPlaces = [];
   List<RideRecord> _rideHistory = [];
   DateTime? _rideStartedAt;
+  DateTime? _ridePausedAt;
+  Duration _ridePausedDuration = Duration.zero;
+  bool _ridePaused = false;
   Position? _lastRidePosition;
   double _recordedRideMeters = 0;
 
@@ -203,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _locationError = null;
     });
 
-    if (_navigating && _route != null) {
+    if (_navigating && !_ridePaused && _route != null) {
       // Keep the rider centered on the map while turn-by-turn navigation runs.
       _mapController.move(_currentLocation, 16);
       _checkRouteProgress();
@@ -531,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _recordRidePosition(Position position) {
-    if (!_navigating || _rideStartedAt == null || position.accuracy > 35) {
+    if (!_navigating || _ridePaused || _rideStartedAt == null || position.accuracy > 35) {
       return;
     }
 
@@ -572,8 +575,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
     // Clear first so arrival + manual stop cannot save the same ride twice.
     _rideStartedAt = null;
-    final duration = DateTime.now().difference(startedAt);
+    final now = DateTime.now();
+    final pausedDuration = _ridePausedDuration +
+        (_ridePausedAt == null ? Duration.zero : now.difference(_ridePausedAt!));
+    final duration = now.difference(startedAt) - pausedDuration;
     final distanceMeters = _recordedRideMeters;
+    _ridePausedAt = null;
+    _ridePausedDuration = Duration.zero;
+    _ridePaused = false;
     _lastRidePosition = null;
     _recordedRideMeters = 0;
 
@@ -692,6 +701,9 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_route == null || _destination == null) return;
     _announcedNearbyReportIds.clear();
     _rideStartedAt = DateTime.now();
+    _ridePausedAt = null;
+    _ridePausedDuration = Duration.zero;
+    _ridePaused = false;
     _lastRidePosition = _position;
     _recordedRideMeters = 0;
     setState(() {
@@ -714,6 +726,31 @@ class _HomeScreenState extends State<HomeScreen> {
       'Je route is ${formatDistance(_route!.distanceMeters)}. '
       'Volg de route op de kaart en let op het verkeer.',
     );
+  }
+
+  Future<void> _pauseRide() async {
+    if (!_navigating || _ridePaused || _rideStartedAt == null) return;
+    setState(() {
+      _ridePaused = true;
+      _ridePausedAt = DateTime.now();
+      _lastRidePosition = null;
+    });
+    await _speechService.stop();
+    if (mounted) _showMessage('Rit gepauzeerd. Je afstand en ritduur lopen niet door.');
+  }
+
+  Future<void> _resumeRide() async {
+    if (!_navigating || !_ridePaused || _rideStartedAt == null) return;
+    final pausedAt = _ridePausedAt;
+    setState(() {
+      if (pausedAt != null) {
+        _ridePausedDuration += DateTime.now().difference(pausedAt);
+      }
+      _ridePausedAt = null;
+      _ridePaused = false;
+      _lastRidePosition = _position;
+    });
+    await _speechService.announce('Je fietsnavigatie wordt hervat.');
   }
 
   Future<void> _stopNavigation() async {
@@ -2608,9 +2645,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const Spacer(),
                           if (_navigating)
-                            const Chip(
-                              avatar: Icon(Icons.circle, size: 9, color: Colors.green),
-                              label: Text('Actief'),
+                            Chip(
+                              avatar: Icon(Icons.circle, size: 9, color: _ridePaused ? Colors.orange : Colors.green),
+                              label: Text(_ridePaused ? 'Gepauzeerd' : 'Actief'),
                               visualDensity: VisualDensity.compact,
                             ),
                         ],
@@ -2644,6 +2681,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           formatDistance(_recordedRideMeters),
                         ),
                       if (_navigating) const SizedBox(height: 12),
+                      if (_navigating)
+                        _detailRow(
+                          Icons.pause_circle_outline_rounded,
+                          'Ritstatus',
+                          _ridePaused ? 'Gepauzeerd' : 'Loopt',
+                        ),
+                      if (_navigating) const SizedBox(height: 12),
                       _detailRow(
                         Icons.speed_rounded,
                         'Huidige snelheid',
@@ -2662,6 +2706,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              if (_navigating)
+                Row(
+                  children: [
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _ridePaused ? _resumeRide : _pauseRide,
+                        icon: Icon(_ridePaused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+                        label: Text(_ridePaused ? 'Hervatten' : 'Pauzeren'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _stopNavigation,
+                        icon: const Icon(Icons.stop_rounded),
+                        label: const Text('Rit beëindigen'),
+                      ),
+                    ),
+                  ],
+                ),
+              if (_navigating) const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
