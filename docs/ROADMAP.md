@@ -10,12 +10,13 @@ FietsRadar is een gratis Flutter-app voor Android met fietsgerichte navigatie en
 - [x] Fietsroutes berekenen via BRouter
 - [x] Routeprofielen: gebalanceerd, vlot doorfietsen en veiligere route
 - [x] Route-instructies uit BRouter verwerken en in het Nederlands uitspreken
+- [x] Instellingen voor gesproken navigatie en waarschuwingen voor actieve meldingen in de buurt, lokaal opgeslagen
 - [x] Volgende manoeuvre en resterende route-informatie tonen
 - [x] Routevoortgang volgen, GPS-uitschieters negeren en automatisch herberekenen na route-afwijking
 - [x] Android-achtergrondnavigatie tijdens een bewust gestarte rit via een foreground location service
 - [x] Favoriete en recente bestemmingen lokaal bewaren
 - [x] GPS-ritregistratie tijdens actieve navigatie met filtering van onnauwkeurige fixes en onwaarschijnlijke sprongen
-- [x] Lokale ritgeschiedenis met datum, bestemming, afgelegde afstand en ritduur (maximaal 100 ritten)
+- [x] Lokale ritgeschiedenis met datum, bestemming, afgelegde afstand, ritduur, gemiddelde snelheid en topsnelheid (maximaal 100 ritten)
 - [x] Wegmeldingen voor gevaar, werkzaamheden, obstakels, gladheid en ongevallen
 - [x] Meldingen lokaal bewaren en optioneel live delen via Supabase Realtime
 - [x] Verlopen gedeelde meldingen automatisch verbergen en server-side opruimen
