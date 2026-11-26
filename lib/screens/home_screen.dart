@@ -1036,7 +1036,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ],
                   ),
                 ),
-              )
+              ),
             if (_offRoute)
               const Padding(
                 padding: EdgeInsets.only(top: 10),
