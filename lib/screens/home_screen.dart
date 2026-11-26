@@ -552,7 +552,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       shrinkWrap: true,
                       padding: const EdgeInsets.symmetric(vertical: 6),
                       itemCount: _suggestions.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (_, _) =>
                           const Divider(height: 1, indent: 54),
                       itemBuilder: (context, index) {
                         final place = _suggestions[index];
@@ -907,7 +907,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
                   : ListView.separated(
                       itemCount: _reports.length,
-                      separatorBuilder: (_, __) =>
+                      separatorBuilder: (_, _) =>
                           const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final report = _reports[index];
