@@ -21,6 +21,40 @@ void main() {
       expect(restored.createdAt, original.createdAt);
     });
 
+    test('shows local reports as locally stored without confirmed validity', () {
+      final report = RoadReport(
+        id: 'local-report',
+        type: ReportType.obstacle,
+        location: const LatLng(52.0, 5.0),
+        createdAt: DateTime(2026, 11, 26, 18),
+      );
+
+      expect(
+        report.validityLabelAt(DateTime(2026, 11, 26, 19)),
+        'Alleen lokaal opgeslagen · geldigheid niet bevestigd',
+      );
+    });
+
+    test('shows remaining validity for shared reports', () {
+      final report = RoadReport(
+        id: 'shared-report',
+        type: ReportType.danger,
+        location: const LatLng(52.0, 5.0),
+        createdAt: DateTime(2026, 11, 26, 18),
+        expiresAt: DateTime(2026, 11, 26, 20),
+        isShared: true,
+      );
+
+      expect(
+        report.validityLabelAt(DateTime(2026, 11, 26, 19, 15)),
+        'Nog geldig · verloopt over 45 min',
+      );
+      expect(
+        report.validityLabelAt(DateTime(2026, 11, 26, 20)),
+        'Verlopen',
+      );
+    });
+
     test('rejects unknown report types', () {
       expect(
         () => RoadReport.fromJson({
