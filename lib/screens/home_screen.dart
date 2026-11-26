@@ -77,6 +77,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _locationError;
   String? _searchError;
   int _instructionCursor = 0;
+  int _furthestRouteIndex = 0;
   int? _lastApproachInstructionIndex;
   int? _lastSpokenInstructionIndex;
   int _offRouteUpdates = 0;
@@ -496,6 +497,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _offRoute = false;
         _offRouteUpdates = 0;
         _instructionCursor = 0;
+        _furthestRouteIndex = 0;
         _lastApproachInstructionIndex = null;
         _lastSpokenInstructionIndex = null;
         _arrivalAnnounced = false;
@@ -524,6 +526,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _offRoute = false;
       _offRouteUpdates = 0;
       _instructionCursor = 0;
+      _furthestRouteIndex = 0;
       _lastApproachInstructionIndex = null;
       _lastSpokenInstructionIndex = null;
       _arrivalAnnounced = false;
@@ -621,7 +624,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final current = LatLng(position.latitude, position.longitude);
     const distance = Distance();
     _checkNearbyReportAlerts(current, distance);
-    final nearestIndex = _nearestRouteIndex(route, current);
+    var nearestIndex = _nearestRouteIndex(route, current);
     final nearestDistance = distance.as(
       LengthUnit.Meter,
       current,
@@ -644,6 +647,8 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     _offRouteUpdates = 0;
+    _furthestRouteIndex = math.max(_furthestRouteIndex, nearestIndex);
+    nearestIndex = _furthestRouteIndex;
     if (_offRoute && !_rerouting) {
       setState(() => _offRoute = false);
     }
@@ -751,6 +756,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _offRoute = false;
         _offRouteUpdates = 0;
         _instructionCursor = 0;
+        _furthestRouteIndex = 0;
         _lastApproachInstructionIndex = null;
         _lastSpokenInstructionIndex = null;
         _arrivalAnnounced = false;
@@ -788,7 +794,10 @@ class _HomeScreenState extends State<HomeScreen> {
       route,
       LatLng(position.latitude, position.longitude),
     );
-    return _distanceAlongRoute(route, nearestIndex, route.points.length - 1);
+    final progressIndex = _navigating
+        ? math.max(_furthestRouteIndex, nearestIndex)
+        : nearestIndex;
+    return _distanceAlongRoute(route, progressIndex, route.points.length - 1);
   }
 
   Future<void> _showReportSheet() async {
