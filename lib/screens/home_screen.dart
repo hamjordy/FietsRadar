@@ -2171,6 +2171,126 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _showRouteInstructions(BikeRoute route) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        child: Container(
+          height: MediaQuery.of(sheetContext).size.height * 0.72,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Routebeschrijving',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                        color: FietsRadarApp.forest,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${formatDistance(route.distanceMeters)} · ${formatDuration(route.estimatedDuration)} naar ${_destination?.name ?? 'bestemming'}',
+                      style: const TextStyle(color: Colors.black54),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: route.instructions.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Text(
+                            'Voor deze route zijn geen afzonderlijke afslagaanwijzingen beschikbaar. Volg de route op de kaart.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(color: Colors.black54, height: 1.4),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(18, 12, 18, 20),
+                        itemCount: route.instructions.length + 1,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          if (index == route.instructions.length) {
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: const CircleAvatar(
+                                backgroundColor: Color(0xFFEAF2E6),
+                                child: Icon(Icons.flag_rounded, color: FietsRadarApp.forest),
+                              ),
+                              title: const Text(
+                                'Bestemming bereikt',
+                                style: TextStyle(fontWeight: FontWeight.w800),
+                              ),
+                              subtitle: Text(_destination?.name ?? 'Eindpunt'),
+                            );
+                          }
+                          final instruction = route.instructions[index];
+                          final distanceFromStart = _distanceAlongRoute(
+                            route,
+                            0,
+                            instruction.pointIndex,
+                          );
+                          final isLeft = instruction.command == 2 ||
+                              instruction.command == 3 ||
+                              instruction.command == 4 ||
+                              instruction.command == 8 ||
+                              instruction.command == 16 ||
+                              instruction.command == 17;
+                          final isRight = instruction.command == 5 ||
+                              instruction.command == 6 ||
+                              instruction.command == 7 ||
+                              instruction.command == 9 ||
+                              instruction.command == 18;
+                          final isRoundabout = instruction.command == 13 ||
+                              instruction.command == 14;
+                          final icon = isLeft
+                              ? Icons.turn_left_rounded
+                              : isRight
+                                  ? Icons.turn_right_rounded
+                                  : isRoundabout
+                                      ? Icons.roundabout_left_rounded
+                                      : instruction.command == 10 ||
+                                              instruction.command == 11 ||
+                                              instruction.command == 15
+                                          ? Icons.u_turn_left_rounded
+                                          : Icons.straight_rounded;
+                          return ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              backgroundColor: const Color(0xFFEAF2E6),
+                              child: Icon(icon, color: FietsRadarApp.forest),
+                            ),
+                            title: Text(
+                              instruction.label,
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                            subtitle: Text('Na ${formatDistance(distanceFromStart)} vanaf vertrek'),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildRideView() {
     final route = _route;
     final remainingDistance = route == null
@@ -2287,6 +2407,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showRouteInstructions(route),
+                  icon: const Icon(Icons.format_list_numbered_rounded),
+                  label: const Text('Bekijk routebeschrijving'),
+                ),
+              ),
+              const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
