@@ -858,14 +858,29 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                             subtitle: Text(
-                              '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year} · ${formatClock(date)} · ${formatDuration(Duration(seconds: ride.durationSeconds))}',
+                              '${date.day.toString().padLeft(2, '0')}-${date.month.toString().padLeft(2, '0')}-${date.year} · ${formatClock(date)} · ${formatDuration(Duration(seconds: ride.durationSeconds))} · gem. ${(ride.distanceMeters / 1000 / (ride.durationSeconds / 3600)).toStringAsFixed(1).replaceAll('.', ',')} km/u',
                             ),
-                            trailing: Text(
-                              formatDistance(ride.distanceMeters),
-                              style: const TextStyle(
-                                color: FietsRadarApp.forest,
-                                fontWeight: FontWeight.w900,
-                              ),
+                            trailing: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  formatDistance(ride.distanceMeters),
+                                  style: const TextStyle(
+                                    color: FietsRadarApp.forest,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                Text(
+                                  'Top ${ride.maxSpeedKmh.toStringAsFixed(1).replaceAll('.', ',')} km/u',
+                                  style: const TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
                             ),
                           );
                         },
