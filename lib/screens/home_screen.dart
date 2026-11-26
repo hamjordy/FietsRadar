@@ -43,6 +43,14 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Place> _favoritePlaces = [];
   List<Place> _recentPlaces = [];
 
+  static const String _routeProfileKey = 'fietsradar.route_profile.v1';
+  String _routeProfile = 'trekking';
+  static const Map<String, String> _routeProfiles = {
+    'trekking': 'Gebalanceerd',
+    'fastbike': 'Vlot doorfietsen',
+    'safety': 'Veiligere route',
+  };
+
   Future<void>? _reportsLoadFuture;
   StreamSubscription<List<RoadReport>>? _sharedReportsSubscription;
   Timer? _reportExpiryTimer;
@@ -89,6 +97,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _reportsLoadFuture = _loadReports();
     unawaited(_loadSavedPlaces());
+    unawaited(_loadRouteProfile());
     unawaited(_connectSharedReports());
     _reportExpiryTimer = Timer.periodic(
       const Duration(minutes: 1),
@@ -216,6 +225,73 @@ class _HomeScreenState extends State<HomeScreen> {
         _searchError = error.toString().replaceFirst('Exception: ', '');
         _suggestions = [];
       });
+    }
+  }
+
+  Future<void> _loadRouteProfile() async {
+    try {
+      final saved = await _preferences.getString(_routeProfileKey);
+      if (!mounted || saved == null || !_routeProfiles.containsKey(saved)) return;
+      setState(() => _routeProfile = saved);
+    } catch (_) {}
+  }
+
+  Future<void> _showRoutePreferences() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => SafeArea(
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(child: Container(width: 38, height: 4, decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(4)))),
+                const SizedBox(height: 18),
+                const Text('Routevoorkeuren', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: FietsRadarApp.forest)),
+                const SizedBox(height: 5),
+                const Text('Kies hoe FietsRadar jouw fietsroute berekent.', style: TextStyle(color: Colors.black54)),
+                const SizedBox(height: 14),
+                ..._routeProfiles.entries.map((entry) => RadioListTile<String>(
+                  value: entry.key,
+                  groupValue: _routeProfile,
+                  activeColor: FietsRadarApp.forest,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(entry.value, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text(entry.key == 'trekking' ? 'Een goede balans tussen comfort en afstand.' : entry.key == 'fastbike' ? 'Gericht op vlot en efficiënt doorfietsen.' : 'Geeft meer prioriteit aan rustigere fietsroutes.'),
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setSheetState(() {});
+                    Navigator.pop(sheetContext, value);
+                  },
+                )),
+                const SizedBox(height: 8),
+                SizedBox(width: double.infinity, child: OutlinedButton(onPressed: () => Navigator.pop(sheetContext), child: const Text('Sluiten'))),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (selected == null || !_routeProfiles.containsKey(selected)) return;
+    setState(() => _routeProfile = selected);
+    try {
+      await _preferences.setString(_routeProfileKey, selected);
+    } catch (_) {
+      _showMessage('Routevoorkeur kon niet worden opgeslagen.');
+    }
+    if (_destination != null && !_navigating) {
+      final destination = _destination!;
+      await _selectDestination(destination);
+    } else {
+      _showMessage('Routevoorkeur ingesteld op ${_routeProfiles[selected]}.');
     }
   }
 
@@ -402,6 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final route = await _routeService.getBikeRoute(
         start: LatLng(position.latitude, position.longitude),
         destination: place.location,
+        profile: _routeProfile,
       );
       if (!mounted) return;
       setState(() {
@@ -622,6 +699,7 @@ class _HomeScreenState extends State<HomeScreen> {
       final route = await _routeService.getBikeRoute(
         start: LatLng(position.latitude, position.longitude),
         destination: destination.location,
+        profile: _routeProfile,
       );
       if (!mounted) return;
 
@@ -1090,6 +1168,12 @@ class _HomeScreenState extends State<HomeScreen> {
                               border: InputBorder.none,
                             ),
                           ),
+                        ),
+                        IconButton(
+                          tooltip: 'Routevoorkeuren',
+                          onPressed: _showRoutePreferences,
+                          icon: const Icon(Icons.tune_rounded),
+                          color: FietsRadarApp.forest,
                         ),
                         if (_searchLoading)
                           const SizedBox(
